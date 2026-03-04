@@ -1,0 +1,20 @@
+data_type,product_name,brand,category,review_text,rating,source,subreddit,title,post_text,upvotes,keyword_detected,keyword,search_volume,growth_percent,timeframe,format,price,ingredient_focus
+review,Hair Growth Serum,Man Matters,Haircare,"Too greasy and leaves a sticky residue on scalp",2,Amazon,,,,,,,,,,,,
+review,Anti Hair Fall Shampoo,Man Matters,Haircare,"Takes too long to show any visible results",2,Flipkart,,,,,,,,,,,,
+review,Rosemary Hair Oil,Vedix,Haircare,"Very expensive for the quantity provided",3,Flipkart,,,,,,,,,,,,
+review,Onion Hair Oil,WOW Skin Science,Haircare,"Greasy formula that stains my pillow every night",2,Amazon,,,,,,,,,,,,
+review,Scalp Serum,Minimalist,Haircare,"Packaging leaked during delivery",2,Amazon,,,,,,,,,,,,
+reddit,,,,,,,,IndianSkincareAddicts,Hair fall help needed,Looking for a non-greasy hair growth solution,120,rosemary oil,,,,,,,
+reddit,,,,,,,,IndianHairLossRecovery,Serum alternatives,Any lightweight serum recommendations for daily use,95,lightweight serum,,,,,,,
+reddit,,,,,,,,IndianSkincareAddicts,Greasy serums rant,Why are all Indian hair serums so greasy and sticky,210,greasy hair serum,,,,,,,
+reddit,,,,,,,,malegrooming,Irritation from hair products,My scalp gets itchy after using most growth serums,78,scalp irritation,,,,,,,
+reddit,,,,,,,,IndianHairLossRecovery,Rosemary oil results,Started rosemary oil 6 weeks ago and seeing baby hairs,245,rosemary oil,,,,,,,
+trends,,,,,,,,,,,,,rosemary oil hair growth,54000,120,12m,,,
+trends,,,,,,,,,,,,,non greasy hair serum,22000,95,12m,,,
+trends,,,,,,,,,,,,,hair growth serum for men,41000,78,12m,,,
+trends,,,,,,,,,,,,,biotin gummies for hair,28000,90,12m,,,
+competition,Hair Growth Serum Pro,Man Matters,Haircare,,,,,,,,,,,,,,,Serum,799,Redensyl
+competition,Onion Hair Oil,WOW Skin Science,Haircare,,,,,,,,,,,,,,,Oil,499,Onion Extract
+competition,Anti Hair Fall Shampoo,Mamaearth,Haircare,,,,,,,,,,,,,,,Shampoo,449,Onion Extract
+competition,Caffeine Shampoo,mCaffeine,Haircare,,,,,,,,,,,,,,,Shampoo,399,Caffeine
+competition,Biotin Gummies,Power Gummies,Supplements,,,,,,,,,,,,,,,Gummy,599,Biotin

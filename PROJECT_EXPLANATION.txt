@@ -1,0 +1,808 @@
+================================================================================
+   MOSAIC NPD — AI PRODUCT INVENTOR
+   Complete Project Explanation (For Fresh Minds)
+================================================================================
+
+
+TABLE OF CONTENTS
+─────────────────
+1. What Is This Project?
+2. The Real-World Problem It Solves
+3. How the Full Workflow Works (Step by Step)
+4. Backend — What Happens Behind the Scenes
+5. Frontend — What the User Sees
+6. Database — Where Data Lives
+7. Real-World Business Use (NPD Context)
+8. Capabilities
+9. Pros
+10. Cons & Limitations
+11. Tech Stack Summary
+12. File-by-File Breakdown
+13. How a Product Manager Would Use This
+14. Future Possibilities
+
+
+================================================================================
+1. WHAT IS THIS PROJECT?
+================================================================================
+
+Mosaic NPD (New Product Development) is a web application that acts as an
+"AI Product Inventor." 
+
+In simple words: You feed it consumer complaints, Reddit discussions, Google
+search trends, and competitor product data — and it automatically invents
+brand-new product ideas backed by real consumer evidence.
+
+Think of it as a smart assistant for a Product Manager at a company like
+Man Matters, Mamaearth, or WOW Skin Science. Instead of spending weeks
+reading thousands of reviews and doing market research manually, this tool
+does it in seconds and gives you a ready-to-present product concept brief.
+
+
+================================================================================
+2. THE REAL-WORLD PROBLEM IT SOLVES
+================================================================================
+
+In the real world, when a company wants to launch a new product, the process
+(called NPD — New Product Development) typically looks like this:
+
+   OLD WAY (Manual, takes weeks):
+   ───────────────────────────────
+   1. Hire a team to read 1000s of Amazon/Flipkart reviews
+   2. Manually browse Reddit/forums for consumer pain points
+   3. Check Google Trends for what people are searching for
+   4. Research competitor products and pricing
+   5. Compile all findings into a spreadsheet
+   6. Brainstorm product ideas in meetings
+   7. Write a product brief document
+   8. Present to leadership for approval
+
+   NEW WAY (With this tool, takes minutes):
+   ─────────────────────────────────────────
+   1. Upload CSV files of reviews, Reddit posts, trends, competitors
+   2. Click "Refresh" on the dashboard
+   3. Get fully-formed product concepts with evidence, pricing,
+      target consumer, ingredients, and a ready-to-present brief
+
+The tool compresses weeks of work into minutes.
+
+
+================================================================================
+3. HOW THE FULL WORKFLOW WORKS (Step by Step)
+================================================================================
+
+Here is the complete journey from raw data to product invention:
+
+   ┌──────────────────────────────────────────────────────────────┐
+   │  STEP 1: DATA UPLOAD                                        │
+   │                                                              │
+   │  The user uploads 4 types of CSV files:                      │
+   │                                                              │
+   │  a) Reviews CSV — Customer reviews from Amazon, Flipkart,    │
+   │     Nykaa with product name, brand, rating, review text      │
+   │                                                              │
+   │  b) Reddit CSV — Posts from subreddits like                  │
+   │     r/IndianSkincareAddicts with title, text, upvotes        │
+   │                                                              │
+   │  c) Trends CSV — Google Trends data showing what people      │
+   │     are searching for (keyword, monthly searches, growth %)  │
+   │                                                              │
+   │  d) Competition CSV — Existing competitor products with      │
+   │     brand, format (serum/oil/shampoo), price, ingredients    │
+   │                                                              │
+   │  (There is also a "Cumulative" option that combines all 4    │
+   │   data types into one CSV file)                              │
+   └──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+   ┌──────────────────────────────────────────────────────────────┐
+   │  STEP 2: COMPLAINT MINING                                    │
+   │                                                              │
+   │  The system reads every review and Reddit post, then scans   │
+   │  for 10 complaint themes using keyword matching:             │
+   │                                                              │
+   │  - Greasy/Heavy Texture ("greasy", "sticky", "oily")        │
+   │  - Slow/No Results ("no results", "didn't work", "waste")   │
+   │  - Skin/Scalp Irritation ("itch", "burn", "rash")           │
+   │  - Price/Value Concern ("expensive", "overpriced")           │
+   │  - Packaging Problems ("leak", "broken", "spill")           │
+   │  - Unpleasant Fragrance ("smell", "chemical smell")         │
+   │  - Hair Fall/Thinning ("hair fall", "shedding", "bald")     │
+   │  - Dryness/Flaking ("dry", "flaky", "dandruff")            │
+   │  - Ingredient Safety ("chemical", "paraben", "sulfate")     │
+   │  - Size/Quantity Issues ("small", "tiny", "runs out")       │
+   │                                                              │
+   │  For each theme, it calculates:                              │
+   │  - Intensity (% of reviews mentioning it)                   │
+   │  - Actual review quotes as citations                         │
+   │  - Reddit post titles as citations                           │
+   │  - Count of reviews and Reddit posts matching                │
+   └──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+   ┌──────────────────────────────────────────────────────────────┐
+   │  STEP 3: OPPORTUNITY SCORING                                 │
+   │                                                              │
+   │  Each complaint theme is scored as a market opportunity:     │
+   │                                                              │
+   │  Score = (Complaint Intensity + Trend Growth + Reddit Buzz)  │
+   │          minus Competition Pressure                          │
+   │          times Confidence Multiplier                         │
+   │                                                              │
+   │  High complaint + high search trend + low competition        │
+   │  = BIG opportunity                                           │
+   │                                                              │
+   │  Each opportunity gets:                                      │
+   │  - A score (0-100)                                           │
+   │  - A tier label:                                             │
+   │      Tier 1 = Launch Priority (score >= 65)                  │
+   │      Tier 2 = Strong Validation Candidate (score >= 40)      │
+   │      Tier 3 = Explore (score >= 20)                          │
+   │      Tier 4 = Monitor (below 20)                             │
+   │  - Market size estimate (e.g., "Rs 80-120 Cr addressable")  │
+   │  - Competition intensity rating                               │
+   │  - Full citation chains (review + Reddit + trend evidence)   │
+   └──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+   ┌──────────────────────────────────────────────────────────────┐
+   │  STEP 4: PRODUCT CONCEPT GENERATION                          │
+   │                                                              │
+   │  For each high-scoring opportunity (Tier 1, 2, or 3), the   │
+   │  system INVENTS a complete product concept:                  │
+   │                                                              │
+   │  - Product Name (e.g., "ScalpLite Caffeine-infused")        │
+   │  - Target Consumer Profile (age, lifestyle, needs)           │
+   │  - Product Format (spray serum, tonic, gel, gummy, etc.)    │
+   │  - Key Ingredients (from a pool of 12 trending ingredients) │
+   │  - Price Range (e.g., "Rs 449 - Rs 649")                   │
+   │  - Competitive Positioning statement                         │
+   │  - Cited Consumer Evidence (actual review/Reddit quotes)    │
+   │  - Full Executive Brief (7-section PM-ready document)       │
+   │                                                              │
+   │  The format is chosen by finding GAPS in the competition.   │
+   │  If everyone sells oils, the system suggests a spray serum. │
+   │                                                              │
+   │  Ingredients are picked from trending searches that are NOT │
+   │  already saturated in competitor products.                   │
+   └──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+   ┌──────────────────────────────────────────────────────────────┐
+   │  STEP 5: BRAND FIT SCORING                                   │
+   │                                                              │
+   │  Each concept is scored 0-100 on how well it fits the       │
+   │  brand's existing identity:                                  │
+   │                                                              │
+   │  - Gender alignment (25 pts) — does it target males?        │
+   │  - Price alignment (20 pts) — is it in the Rs 500-1000     │
+   │    sweet spot?                                               │
+   │  - Opportunity strength (30 pts) — higher opp = better      │
+   │  - Category alignment (25 pts) — is it haircare/grooming?  │
+   │                                                              │
+   │  This helps the PM know: "Will this concept fit our brand?" │
+   └──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+   ┌──────────────────────────────────────────────────────────────┐
+   │  STEP 6: DASHBOARD DISPLAY                                   │
+   │                                                              │
+   │  Everything is displayed on a beautiful dark-themed          │
+   │  dashboard with:                                             │
+   │                                                              │
+   │  - AI Insight Summary (top concept highlight + confidence)  │
+   │  - KPI Cards (total concepts, avg score, brand fit)         │
+   │  - Complaint Bar Chart (visual intensity comparison)        │
+   │  - Opportunity Cards (ranked, expandable, with evidence)    │
+   │  - Concept Cards (full product briefs, citations, scores)   │
+   │  - Score Rings (visual opportunity + brand fit gauges)      │
+   └──────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+4. BACKEND — WHAT HAPPENS BEHIND THE SCENES
+================================================================================
+
+The backend is built with Python using the FastAPI framework. Here is what
+each file does in simple words:
+
+   app/main.py
+   ────────────
+   The "front door" of the backend. It starts the server, connects all the
+   routes together, sets up the database tables, and allows the frontend
+   to talk to it (CORS middleware).
+
+   app/database.py
+   ────────────────
+   Connects to a PostgreSQL database using SQLAlchemy. Think of it as the
+   "bridge" between Python code and the database.
+
+   app/models.py
+   ──────────────
+   Defines 6 database tables (like Excel spreadsheets in the database):
+     1. reviews_raw — stores uploaded customer reviews
+     2. reddit_raw — stores uploaded Reddit posts
+     3. trends_raw — stores uploaded Google Trends data
+     4. competition_products — stores uploaded competitor data
+     5. opportunity_clusters — stores calculated opportunity scores
+     6. product_concepts — stores the invented product concepts
+
+   app/config.py
+   ──────────────
+   Reads the database connection URL from environment variables (.env file).
+
+   app/routes/upload.py
+   ─────────────────────
+   Handles file uploads. When the user uploads a CSV:
+     1. Validates that the CSV has the correct columns
+     2. Cleans the data (handles missing values, NaN, etc.)
+     3. Saves each row to the correct database table
+   Supports 5 upload types: reviews, reddit, trends, competition, cumulative.
+
+   app/routes/analysis.py
+   ───────────────────────
+   The "brain" route. Has 3 endpoints:
+     GET /analysis/complaints  → runs complaint mining
+     GET /analysis/opportunities → runs opportunity scoring
+     GET /analysis/concepts → runs the full pipeline:
+       complaint mining → opportunity scoring → concept generation →
+       brand fit scoring → save to database → return to frontend
+
+   app/routes/health.py
+   ─────────────────────
+   A simple "are you alive?" check. Returns status message.
+
+   app/services/review_analyzer.py
+   ────────────────────────────────
+   The complaint mining engine. Scans every review and Reddit post against
+   10 complaint themes using keyword matching. Returns intensity scores
+   and actual quotes as citations.
+
+   app/services/scoring.py
+   ────────────────────────
+   The opportunity scoring engine. Combines complaint intensity + Google
+   Trends growth + Reddit buzz - competition pressure to produce a final
+   score (0-100) and tier classification for each theme.
+
+   app/services/concept_generator.py
+   ───────────────────────────────────
+   The product inventor. Takes scored opportunities and generates complete
+   product concepts with names, formats, ingredients, pricing, consumer
+   profiles, competitive positioning, and 7-section executive briefs.
+   Uses built-in knowledge bases:
+     - 12 ingredients with benefits
+     - 10 product format options with price bands
+     - 10 theme-to-concept direction mappings
+
+   app/services/brand_fit.py
+   ──────────────────────────
+   Scores each concept 0-100 on brand alignment across 4 dimensions:
+   gender, price, opportunity strength, and category fit.
+
+   app/services/ai_adapter.py
+   ───────────────────────────
+   A placeholder for future AI integration (e.g., Claude/GPT API).
+   Currently passes text through unchanged. When an API key is provided,
+   it could refine executive briefs using large language models.
+
+
+================================================================================
+5. FRONTEND — WHAT THE USER SEES
+================================================================================
+
+The frontend is built with React.js. Here are the 5 pages:
+
+   pages/login.jsx
+   ────────────────
+   A login page with floating orb animations. Uses simple localStorage-based
+   authentication (email + password, no real backend auth). Acts as a gate
+   to the main application.
+
+   pages/dashboard.jsx (THE MAIN PAGE)
+   ─────────────────────────────────────
+   The intelligence hub with 4 tabs:
+
+   OVERVIEW TAB:
+     - AI Insight Summary card (highlights top concept + AI confidence score)
+     - 4 KPI stat cards with animated counters
+     - Complaint bar chart (top 10 consumer pain points)
+     - Top opportunities list (ranked by score)
+
+   COMPLAINTS TAB:
+     - Full complaint analysis with intensity bars
+     - Shows review count and Reddit count per theme
+
+   OPPORTUNITIES TAB:
+     - Ranked opportunity cards with score rings
+     - Expandable details (complaint %, trend growth, Reddit mentions,
+       competition density, market size estimate)
+
+   CONCEPTS TAB:
+     - Product concept cards showing:
+       * Tier badge + category badge
+       * Product name
+       * Opportunity score ring + Brand fit score ring
+       * Target consumer profile
+       * Product format + price range
+       * Key ingredients
+       * Market size estimate + positioning
+       * Cited consumer evidence (actual review/Reddit quotes)
+       * Expandable full executive brief
+
+   pages/upload.jsx
+   ─────────────────
+   A drag-and-drop file upload page. Supports 5 data types (reviews, reddit,
+   trends, competition, cumulative). Validates column names before uploading.
+   Shows progress and success/error feedback.
+
+   pages/format.jsx
+   ─────────────────
+   A 3-step CSV column-mapping tool. If someone has data in a different
+   format (different column names), this page helps them map their columns
+   to the required format and download a properly formatted CSV.
+
+   pages/scraping.jsx
+   ───────────────────
+   A "coming soon" placeholder for a future AI web scraping feature that
+   would automatically collect reviews and Reddit data from the internet.
+
+   App.js
+   ──────
+   The main app shell with navigation bar, routing, page transitions,
+   and authentication state management.
+
+
+================================================================================
+6. DATABASE — WHERE DATA LIVES
+================================================================================
+
+The app uses PostgreSQL (a powerful relational database) with 6 tables:
+
+   INPUT TABLES (raw data from CSV uploads):
+   ──────────────────────────────────────────
+   reviews_raw          → product_name, brand, category, review_text, rating, source
+   reddit_raw           → subreddit, title, post_text, upvotes, keyword_detected
+   trends_raw           → keyword, search_volume, growth_percent, timeframe
+   competition_products → product_name, brand, category, format, price, ingredient_focus
+
+   OUTPUT TABLES (generated by the analysis engine):
+   ──────────────────────────────────────────────────
+   opportunity_clusters → theme, complaint_intensity, search_growth, reddit_mentions,
+                          competition_density, opportunity_score, tier
+   product_concepts     → product_name, persona, format, ingredient_direction,
+                          price_range, positioning, supporting_data,
+                          opportunity_score, brand_fit_score, tier
+
+   Every table has an auto-incrementing ID and a created_at timestamp.
+
+
+================================================================================
+7. REAL-WORLD BUSINESS USE (NPD CONTEXT)
+================================================================================
+
+NPD stands for New Product Development. Here is how this tool fits into a
+real company's product development cycle:
+
+   WHO USES IT?
+   ─────────────
+   - Product Managers (primary users)
+   - Brand Strategists
+   - R&D/Formulation teams
+   - Marketing teams
+   - Founders of D2C (Direct to Consumer) brands
+
+   WHEN IS IT USED?
+   ─────────────────
+   - During quarterly product planning cycles
+   - When entering a new product category
+   - When competitor analysis is needed
+   - When consumer sentiment needs to be understood quickly
+   - Before investing in R&D for a new product
+
+   REAL EXAMPLE SCENARIO:
+   ──────────────────────
+   Imagine you are a Product Manager at "Man Matters" (a real Indian D2C
+   men's grooming brand). Your boss says: "We need 3 new product ideas
+   for the next quarter."
+
+   Without this tool:
+     - You spend 2 weeks reading Amazon reviews
+     - You spend a week browsing Reddit
+     - You hire an agency for competitor analysis
+     - You spend days writing product briefs
+     - Total: 3-4 weeks, Rs 2-5 lakhs in agency fees
+
+   With this tool:
+     - Upload your review data CSV (5 minutes)
+     - Upload Reddit data CSV (5 minutes)
+     - Upload Google Trends data (5 minutes)
+     - Upload competitor data (5 minutes)
+     - Dashboard auto-generates 3-5 product concepts (30 seconds)
+     - Each concept has a complete executive brief ready to present
+     - Total: 20 minutes, Rs 0 additional cost
+
+   INDUSTRY CONTEXT:
+   ─────────────────
+   This tool is specifically designed for the Indian personal care and
+   wellness market (haircare, skincare, grooming, supplements). The sample
+   data includes:
+     - Indian e-commerce platforms (Amazon India, Flipkart, Nykaa)
+     - Indian communities (r/IndianSkincareAddicts)
+     - Indian pricing (in Rupees)
+     - Indian D2C brands (Man Matters, Mamaearth, WOW, Traya, Minimalist)
+     - Indian market sizing (in Crores)
+
+
+================================================================================
+8. CAPABILITIES
+================================================================================
+
+What this tool CAN do:
+
+   a) COMPLAINT MINING
+      - Scan thousands of reviews and Reddit posts in seconds
+      - Identify 10 distinct consumer pain point categories
+      - Calculate intensity (how widespread each complaint is)
+      - Provide actual consumer quotes as evidence
+
+   b) TREND ANALYSIS
+      - Match consumer complaints with Google search trends
+      - Identify themes where demand is growing
+      - Calculate search volume and growth percentages
+
+   c) COMPETITIVE LANDSCAPE ANALYSIS
+      - Count how many competitors exist in each space
+      - Identify format gaps (e.g., everyone makes oils, nobody makes sprays)
+      - Calculate competition intensity scores
+      - Identify ingredient saturation (what ingredients are overused)
+
+   d) MARKET SIZING
+      - Estimate addressable market size from search volume
+      - Classify opportunities by market potential
+      - Uses Indian market benchmarks (Rs Crore ranges)
+
+   e) PRODUCT INVENTION
+      - Generate complete product concepts automatically
+      - Suggest creative product names
+      - Define target consumer profiles
+      - Recommend product formats based on competitive gaps
+      - Suggest trending ingredient combinations
+      - Provide pricing recommendations
+      - Write full executive briefs with 7 sections
+
+   f) BRAND FITNESS EVALUATION
+      - Score each concept on brand alignment (0-100)
+      - Consider gender targeting, price band, category fit
+      - Help filter concepts that match the brand identity
+
+   g) DATA FORMATTING
+      - Convert any CSV format to the required column structure
+      - Interactive 3-step column mapping wizard
+      - Supports all 5 data types
+
+   h) EVIDENCE-BASED OUTPUT
+      - Every recommendation is backed by cited consumer evidence
+      - Actual review quotes, Reddit post titles, trend data
+      - No unsupported claims — everything is traceable
+
+   i) AI CONFIDENCE SCORING
+      - Combines opportunity + brand fit into a single confidence metric
+      - Helps PMs quickly identify the strongest concept
+      - Displayed prominently in the AI Insight Summary
+
+
+================================================================================
+9. PROS (STRENGTHS)
+================================================================================
+
+   1. SPEED
+      Compresses weeks of manual research into minutes. Upload data, get
+      product concepts instantly.
+
+   2. EVIDENCE-BASED
+      Every product idea is backed by real consumer complaints, search
+      trends, and Reddit discussions. Nothing is made up.
+
+   3. STRUCTURED OUTPUT
+      Generates PM-ready executive briefs that can be directly presented
+      to leadership without rewriting.
+
+   4. CONSISTENT METHODOLOGY
+      Uses the same scoring formula every time. No human bias in
+      opportunity evaluation.
+
+   5. GAP IDENTIFICATION
+      Automatically finds format gaps and ingredient white spaces that
+      humans might miss when looking at competitor data.
+
+   6. BEAUTIFUL UI
+      Dark, futuristic glassmorphism design with animations, score rings,
+      expandable cards, and skeleton loaders. Looks professional.
+
+   7. FLEXIBLE DATA INPUT
+      Accepts 5 different CSV types + a cumulative format. The Format page
+      helps convert any CSV structure to the required format.
+
+   8. COST EFFECTIVE
+      Eliminates the need for expensive market research agencies for initial
+      product ideation.
+
+   9. SCALABLE
+      Can process hundreds of reviews and posts. Adding more data only makes
+      the analysis better.
+
+  10. MODULAR ARCHITECTURE
+      Backend services are cleanly separated. Easy to upgrade individual
+      components (e.g., swap keyword matching for ML-based NLP later).
+
+  11. FULL-STACK SOLUTION
+      End-to-end pipeline from raw data to presentable product concepts.
+      No need for multiple disconnected tools.
+
+  12. INDIAN MARKET FOCUS
+      Specifically calibrated for Indian D2C personal care market with
+      Rupee pricing, Indian platforms, and Crore-based market sizing.
+
+
+================================================================================
+10. CONS & LIMITATIONS
+================================================================================
+
+   1. KEYWORD-BASED (NOT TRUE AI/NLP)
+      Complaint mining uses simple keyword matching, not machine learning.
+      It can miss complaints phrased in unusual ways. For example, "this
+      product made my hair worse" wouldn't match any keyword theme.
+
+   2. NO AUTOMATIC DATA COLLECTION
+      Users must manually collect and upload CSV data. The tool does not
+      scrape Amazon, Reddit, or Google Trends automatically (the scraping
+      page is just a "coming soon" placeholder).
+
+   3. NO REAL AUTHENTICATION
+      Login is localStorage-based — there is no real backend authentication,
+      no password hashing, no user database. Anyone who opens the URL can
+      access the dashboard.
+
+   4. SINGLE BRAND PROFILE
+      Brand fit scoring is hardcoded for a male-focused, Rs 500-1000,
+      haircare/grooming brand. It doesn't adapt to different brand profiles
+      without code changes.
+
+   5. NO HISTORICAL TRACKING
+      Each analysis run clears previous results. There is no version history
+      or trend-over-time tracking of how opportunities change.
+
+   6. LIMITED CATEGORY SCOPE
+      The complaint themes, ingredient pool, and format options are designed
+      for personal care (haircare, skincare). Using it for unrelated
+      categories (electronics, food) would give poor results.
+
+   7. NO EXPORT FUNCTIONALITY
+      Product concepts cannot be exported as PDF, PowerPoint, or Excel
+      directly from the dashboard. Users must copy-paste.
+
+   8. STATIC INGREDIENT & FORMAT KNOWLEDGE
+      The 12 ingredients and 10 formats are hardcoded. New trends
+      (e.g., a new miracle ingredient) require code changes.
+
+   9. NO MULTI-USER COLLABORATION
+      Single-user tool. No team features, commenting, or shared workspaces.
+
+  10. ENGLISH ONLY
+      Cannot process reviews written in Hindi, regional languages, or
+      mixed-language (Hinglish) reviews that are common in Indian
+      e-commerce.
+
+  11. NO SENTIMENT ANALYSIS
+      Treats all keyword matches equally. A review saying "not greasy at
+      all" would still trigger the greasy_texture theme because it contains
+      the keyword "greasy."
+
+  12. REQUIRES POSTGRESQL
+      Database dependency means you need a PostgreSQL server running,
+      making local setup slightly complex for non-technical users.
+
+  13. NO AI/LLM INTEGRATION YET
+      The ai_adapter.py is a placeholder. The executive briefs are
+      template-based, not refined by GPT/Claude. The briefs follow a
+      fixed structure and can feel repetitive across concepts.
+
+  14. DATA QUALITY DEPENDENT
+      Output is only as good as the input data. Bad or insufficient CSV
+      data will produce weak or misleading concepts.
+
+
+================================================================================
+11. TECH STACK SUMMARY
+================================================================================
+
+   FRONTEND:
+   ─────────
+   - React 19 (JavaScript library for building user interfaces)
+   - React Router DOM 7 (page navigation)
+   - Axios (HTTP requests to backend)
+   - Inline CSS with glassmorphism design system
+   - Fonts: DM Sans (body) + JetBrains Mono (monospace/numbers)
+   - Colors: Dark base (#020617), Amber accent (#f59e0b)
+
+   BACKEND:
+   ────────
+   - Python 3.13
+   - FastAPI (modern, fast web framework)
+   - Uvicorn (ASGI server to run FastAPI)
+   - SQLAlchemy (ORM — talks to database using Python objects)
+   - Pandas (CSV file reading and data manipulation)
+   - NumPy (safe number handling for NaN values)
+   - psycopg2-binary (PostgreSQL driver)
+
+   DATABASE:
+   ─────────
+   - PostgreSQL (with SSL required)
+   - 6 tables (4 input + 2 output)
+
+   ARCHITECTURE:
+   ─────────────
+   - Frontend (React, port 3000) ←→ Backend API (FastAPI, port 8000)
+   - Backend ←→ PostgreSQL Database
+   - CORS enabled for cross-origin communication
+
+
+================================================================================
+12. FILE-BY-FILE BREAKDOWN
+================================================================================
+
+   d:\mosaic-product-strategy-engine\
+   │
+   ├── backend\
+   │   ├── requirements.txt          — Python package dependencies list
+   │   ├── load_data.py              — Utility script to load sample data
+   │   ├── data\                     — Raw data files for direct DB loading
+   │   │   ├── reviews.csv
+   │   │   ├── reddit.csv
+   │   │   ├── trends.csv
+   │   │   └── competition.csv
+   │   │
+   │   └── app\
+   │       ├── __init__.py           — Makes "app" a Python package
+   │       ├── config.py             — Reads DATABASE_URL from .env
+   │       ├── database.py           — SQLAlchemy engine + session setup
+   │       ├── main.py               — FastAPI app creation + startup
+   │       ├── models.py             — 6 database table definitions
+   │       ├── schemas.py            — Pydantic schemas (data validation)
+   │       │
+   │       ├── routes\
+   │       │   ├── health.py         — GET / (health check)
+   │       │   ├── upload.py         — POST /upload/* (5 CSV upload endpoints)
+   │       │   └── analysis.py       — GET /analysis/* (3 analysis endpoints)
+   │       │
+   │       └── services\
+   │           ├── review_analyzer.py — Complaint mining engine (10 themes)
+   │           ├── scoring.py         — Opportunity scoring engine
+   │           ├── concept_generator.py — Product concept inventor
+   │           ├── brand_fit.py       — Brand alignment scorer
+   │           └── ai_adapter.py      — AI/LLM integration placeholder
+   │
+   ├── frontend\
+   │   ├── package.json              — Node.js dependencies + scripts
+   │   ├── public\
+   │   │   └── index.html            — HTML shell
+   │   └── src\
+   │       ├── App.js                — Main app (navbar, routing, auth)
+   │       ├── index.js              — React entry point
+   │       ├── index.css             — Global styles
+   │       └── pages\
+   │           ├── login.jsx         — Login page
+   │           ├── dashboard.jsx     — Main intelligence dashboard
+   │           ├── upload.jsx        — Data upload page
+   │           ├── format.jsx        — CSV column mapper tool
+   │           └── scraping.jsx      — AI Scraper (coming soon)
+   │
+   └── sample_data\
+       ├── reviews.csv               — 25 sample Indian market reviews
+       ├── reddit.csv                — 14 sample Reddit posts
+       ├── trends.csv                — 12 sample Google Trends entries
+       ├── competition.csv           — 12 sample competitor products
+       ├── cumulative.csv            — Combined sample (all 4 types)
+       └── unformatted_reviews.csv   — Test file for the Format page
+
+
+================================================================================
+13. HOW A PRODUCT MANAGER WOULD USE THIS
+================================================================================
+
+   MONDAY MORNING SCENARIO:
+   ─────────────────────────
+
+   9:00 AM — PM downloads recent reviews from Amazon Seller Central
+             and saves as reviews.csv
+
+   9:05 AM — PM exports Reddit posts from a saved search and saves
+             as reddit.csv
+
+   9:10 AM — PM downloads Google Trends data for relevant keywords
+             and saves as trends.csv
+
+   9:15 AM — PM compiles competitor product list from market research
+             and saves as competition.csv
+
+   9:20 AM — PM opens Mosaic NPD, navigates to Upload page, and
+             uploads all 4 CSV files
+
+   9:22 AM — PM switches to Dashboard, clicks "Refresh"
+
+   9:23 AM — Dashboard shows:
+             "The AI analysis identified ScalpLite Caffeine-infused as
+              the strongest opportunity with an opportunity score of 61.1
+              and a brand alignment score of 75.0. AI confidence level
+              for this concept is 68.1%."
+
+   9:25 AM — PM clicks "View Full Product Brief" on the top concept card
+             and reads the 7-section executive brief
+
+   9:30 AM — PM copies the brief into a PowerPoint and presents it
+             to the VP of Product
+
+   9:45 AM — VP approves moving 2 concepts to R&D validation stage
+
+   Total time: 45 minutes from raw data to leadership approval.
+
+
+================================================================================
+14. FUTURE POSSIBILITIES
+================================================================================
+
+Things that could be added to make this tool even more powerful:
+
+   a) REAL AI INTEGRATION
+      Connect Claude or GPT API to refine executive briefs, generate
+      marketing copy, and produce more creative product names.
+
+   b) AUTOMATIC WEB SCRAPING
+      Auto-collect reviews from Amazon, Flipkart, Reddit using web
+      scraping. Eliminate manual CSV preparation entirely.
+
+   c) NLP/ML COMPLAINT DETECTION
+      Replace keyword matching with machine learning models that
+      understand context ("not greasy at all" = positive, not negative).
+
+   d) SENTIMENT ANALYSIS
+      Understand not just WHAT consumers say, but HOW they feel.
+      Positive, negative, and neutral classification.
+
+   e) MULTI-BRAND PROFILES
+      Allow users to configure their own brand profile instead of
+      the hardcoded Man Matters-style profile.
+
+   f) PDF/PPTX EXPORT
+      One-click export of product concepts as formatted PDF reports
+      or PowerPoint presentations.
+
+   g) HISTORICAL DASHBOARD
+      Track how opportunities change over time. "Greasy texture complaints
+      grew 20% since last quarter."
+
+   h) MULTI-LANGUAGE SUPPORT
+      Process Hindi, Hinglish, and regional language reviews that are
+      common on Indian e-commerce platforms.
+
+   i) TEAM COLLABORATION
+      Multiple users, roles, commenting, and approval workflows.
+
+   j) REAL AUTHENTICATION
+      Proper user database, password hashing, JWT tokens, role-based
+      access control.
+
+   k) CATEGORY EXPANSION
+      Extend beyond personal care to food & beverages, electronics,
+      fitness equipment, etc.
+
+   l) A/B TESTING INTEGRATION
+      Connect concept scores to actual market test results to validate
+      and improve the scoring model over time.
+
+
+================================================================================
+   END OF DOCUMENT
+   Generated for: Mosaic NPD — AI Product Inventor
+   Project Path: d:\mosaic-product-strategy-engine
+================================================================================

@@ -86,6 +86,12 @@ def validate_columns(df: pd.DataFrame, data_type: str):
     df.columns = [c.strip().lower() for c in df.columns]
 
 
+def _clear_analysis(db: Session):
+    """Remove stale analysis results so dashboard shows nothing until re-run."""
+    db.query(models.OpportunityCluster).delete()
+    db.query(models.ProductConcept).delete()
+
+
 @router.post("/reviews")
 async def upload_reviews(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
@@ -95,6 +101,8 @@ async def upload_reviews(file: UploadFile = File(...), db: Session = Depends(get
     validate_columns(df, "reviews")
 
     try:
+        db.query(models.ReviewRaw).delete()
+        _clear_analysis(db)
         for _, row in df.iterrows():
             review = models.ReviewRaw(
                 product_name=safe_str(row.get("product_name")),
@@ -124,6 +132,8 @@ async def upload_reddit(file: UploadFile = File(...), db: Session = Depends(get_
     validate_columns(df, "reddit")
 
     try:
+        db.query(models.RedditRaw).delete()
+        _clear_analysis(db)
         for _, row in df.iterrows():
             record = models.RedditRaw(
                 subreddit=safe_str(row.get("subreddit"), "unknown"),
@@ -152,6 +162,8 @@ async def upload_trends(file: UploadFile = File(...), db: Session = Depends(get_
     validate_columns(df, "trends")
 
     try:
+        db.query(models.TrendRaw).delete()
+        _clear_analysis(db)
         for _, row in df.iterrows():
             record = models.TrendRaw(
                 keyword=safe_str(row.get("keyword")),
@@ -179,6 +191,8 @@ async def upload_competition(file: UploadFile = File(...), db: Session = Depends
     validate_columns(df, "competition")
 
     try:
+        db.query(models.CompetitionProduct).delete()
+        _clear_analysis(db)
         for _, row in df.iterrows():
             record = models.CompetitionProduct(
                 product_name=safe_str(row.get("product_name")),

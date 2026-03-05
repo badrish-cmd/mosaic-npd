@@ -785,7 +785,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState({ status: false, complaints: false, opportunities: false, concepts: false, analysis: false });
   const [errors, setErrors] = useState({});
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [, setAnalysisRan] = useState(false);
 
   /* Fetch helpers */
   const fetchData = useCallback(async (endpoint, setter, key, method = "GET") => {
@@ -808,11 +807,9 @@ export default function Dashboard() {
     }
   }, []);
 
-  /* Load only saved/cached data — no computation */
-  const loadSavedData = useCallback(() => {
+  /* Load only status (data counts) — no computation, no stale analysis */
+  const loadStatus = useCallback(() => {
     fetchData("/analysis/status", setStatus, "status");
-    fetchData("/analysis/opportunities", setOpportunities, "opportunities");
-    fetchData("/analysis/concepts", setConcepts, "concepts");
     setLastRefresh(new Date());
   }, [fetchData]);
 
@@ -830,7 +827,6 @@ export default function Dashboard() {
       setComplaints(data.complaints);
       setOpportunities(data.opportunities);
       setConcepts(data.concepts);
-      setAnalysisRan(true);
       setLastRefresh(new Date());
       // Refresh status counts
       fetchData("/analysis/status", setStatus, "status");
@@ -854,8 +850,8 @@ export default function Dashboard() {
     fetchData("/analysis/opportunities", setOpportunities, "opportunities", "POST");
   }, [fetchData]);
 
-  /* On mount: load ONLY saved data, no computation */
-  useEffect(() => { loadSavedData(); }, [loadSavedData]);
+  /* On mount: load ONLY status counts — no stale analysis data */
+  useEffect(() => { loadStatus(); }, [loadStatus]);
 
   /* Computed stats */
   const totalConcepts = concepts?.length || 0;
@@ -994,7 +990,7 @@ export default function Dashboard() {
                 Updated {lastRefresh.toLocaleTimeString()}
               </span>
             )}
-            <button onClick={loadSavedData} disabled={isLoading} style={{
+            <button onClick={loadStatus} disabled={isLoading} style={{
               padding: "9px 20px", borderRadius: 10,
               background: isLoading ? "rgba(51,65,85,0.3)" : "rgba(51,65,85,0.4)",
               border: "1px solid rgba(71,85,105,0.4)",
@@ -1055,20 +1051,24 @@ export default function Dashboard() {
         {/* ─── OVERVIEW TAB ─────────────────────────────────────── */}
         {tab === "overview" && (
           <>
-            {/* Data Status Banner — show what's uploaded */}
-            {status && !hasAnalysis && (
+            {/* Data Status Banner — always show current upload status */}
+            {status && (
               <div className="fade-up" style={{
                 ...cardBase, padding: "24px 28px", marginBottom: 24,
-                borderColor: hasData ? "rgba(245,158,11,0.2)" : "rgba(51,65,85,0.5)",
+                borderColor: hasData ? (hasAnalysis ? "rgba(34,197,94,0.2)" : "rgba(245,158,11,0.2)") : "rgba(51,65,85,0.5)",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                  <span style={{ fontSize: 20 }}>{hasData ? "📂" : "📭"}</span>
+                  <span style={{ fontSize: 20 }}>{hasAnalysis ? "✅" : hasData ? "📂" : "📭"}</span>
                   <div>
                     <h3 style={{ fontSize: 15, fontWeight: 700, color: "#e2e8f0", margin: 0 }}>
-                      {hasData ? "Data Uploaded — Ready to Analyze" : "No Data Uploaded Yet"}
+                      {hasAnalysis ? "Analysis Complete" : hasData ? "Data Uploaded — Ready to Analyze" : "No Data Uploaded Yet"}
                     </h3>
                     <p style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
-                      {hasData ? "Click \"Run Full Analysis\" to generate insights from your data." : "Upload data files on the Upload page to get started."}
+                      {hasAnalysis
+                        ? "Showing results from the latest analysis run."
+                        : hasData
+                        ? "Click \"Run Full Analysis\" to generate insights from your data."
+                        : "Upload data files on the Upload page to get started."}
                     </p>
                   </div>
                 </div>

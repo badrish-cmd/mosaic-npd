@@ -14,17 +14,17 @@ def normalize(value, max_value=100):
 
 
 def estimate_market_size(search_volume):
-    """Rough addressable market estimate from monthly search volume in India."""
+    """Rough addressable market estimate from monthly search volume."""
     if search_volume >= 50000:
-        return "₹80–120 Cr addressable"
+        return "Large addressable market (50K+ searches/mo)"
     elif search_volume >= 30000:
-        return "₹40–80 Cr addressable"
+        return "Significant market (30K+ searches/mo)"
     elif search_volume >= 15000:
-        return "₹15–40 Cr addressable"
+        return "Growing market (15K+ searches/mo)"
     elif search_volume >= 5000:
-        return "₹5–15 Cr addressable"
+        return "Moderate market (5K+ searches/mo)"
     else:
-        return "₹1–5 Cr niche segment"
+        return "Niche segment (<5K searches/mo)"
 
 
 def calculate_competition_intensity(competition_count, prices=None):

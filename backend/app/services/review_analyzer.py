@@ -1,10 +1,10 @@
 """
-Review Analyzer — extracts complaint themes with cited evidence from reviews
-and Reddit posts. Returns rich objects per theme including intensity score,
-review and Reddit citations, enabling data-backed concept generation.
+Review Analyzer — extracts complaint themes from reviews and Reddit posts
+using data-driven phrase extraction. Works with ANY product category by
+mining actual review text rather than matching hardcoded keywords.
 
-Works with any product category by combining predefined themes with
-dynamic keyword extraction from actual review text.
+Returns rich objects per theme including intensity score, review and Reddit
+citations, enabling data-backed concept generation.
 """
 
 from collections import defaultdict, Counter
@@ -12,100 +12,7 @@ import re
 from sqlalchemy.orm import Session
 from app import models
 
-# ── Predefined complaint theme keyword mapping ──────────────────────────
-# Covers common product complaint patterns across many categories
-COMPLAINT_THEMES = {
-    "greasy_texture": {
-        "keywords": ["greasy", "sticky", "oily", "heavy", "residue", "thick", "messy"],
-        "label": "Greasy / Heavy Texture",
-        "icon": "💧",
-    },
-    "slow_results": {
-        "keywords": ["slow", "takes too long", "no results", "didn't work", "months",
-                     "no change", "useless", "ineffective", "no improvement", "waste"],
-        "label": "Slow / No Visible Results",
-        "icon": "⏳",
-    },
-    "irritation": {
-        "keywords": ["itch", "irritation", "burn", "rash", "sensitive", "reaction",
-                     "redness", "stinging", "allergy", "scalp irritation", "skin irritation"],
-        "label": "Skin / Scalp Irritation",
-        "icon": "🔥",
-    },
-    "price_concern": {
-        "keywords": ["expensive", "costly", "price", "overpriced", "not worth",
-                     "waste of money", "too much", "cheaper"],
-        "label": "Price / Value Concern",
-        "icon": "💰",
-    },
-    "packaging_issue": {
-        "keywords": ["leak", "packaging", "broken", "spill", "pump", "cap", "bottle",
-                     "damage", "damaged", "dented"],
-        "label": "Packaging Problems",
-        "icon": "📦",
-    },
-    "fragrance_issue": {
-        "keywords": ["smell", "fragrance", "scent", "chemical smell", "odor", "stink"],
-        "label": "Unpleasant Fragrance",
-        "icon": "👃",
-    },
-    "hair_fall": {
-        "keywords": ["hair fall", "hair loss", "shedding", "thinning", "bald",
-                     "losing hair", "receding"],
-        "label": "Hair Fall / Thinning",
-        "icon": "💇",
-    },
-    "dryness": {
-        "keywords": ["dry", "flaky", "dandruff", "parched", "rough", "brittle"],
-        "label": "Dryness / Flaking",
-        "icon": "🏜️",
-    },
-    "ingredient_safety": {
-        "keywords": ["chemical", "artificial", "paraben", "sulfate", "harmful",
-                     "toxic", "side effect"],
-        "label": "Ingredient Safety Concerns",
-        "icon": "⚗️",
-    },
-    "size_quantity": {
-        "keywords": ["small", "quantity", "less product", "tiny", "runs out",
-                     "finished quickly"],
-        "label": "Size / Quantity Issues",
-        "icon": "📏",
-    },
-    "quality_issue": {
-        "keywords": ["poor quality", "cheap quality", "low quality", "defective",
-                     "faulty", "broke", "stopped working", "malfunction", "doesnt work",
-                     "doesn't work", "not working", "fell apart"],
-        "label": "Quality / Durability Issues",
-        "icon": "⚠️",
-    },
-    "delivery_issue": {
-        "keywords": ["late delivery", "delayed", "wrong item", "wrong product",
-                     "missing", "not delivered", "delivery"],
-        "label": "Delivery / Fulfillment Issues",
-        "icon": "🚚",
-    },
-    "fake_product": {
-        "keywords": ["fake", "counterfeit", "duplicate", "not original", "not genuine",
-                     "copy", "fraud"],
-        "label": "Authenticity Concerns",
-        "icon": "🔍",
-    },
-    "taste_flavor": {
-        "keywords": ["taste", "flavor", "bitter", "bland", "awful taste", "bad taste",
-                     "unpleasant taste"],
-        "label": "Taste / Flavor Issues",
-        "icon": "👅",
-    },
-    "comfort_fit": {
-        "keywords": ["uncomfortable", "tight", "loose", "doesn't fit", "size issue",
-                     "wrong size", "not comfortable", "hurts"],
-        "label": "Comfort / Fit Issues",
-        "icon": "👔",
-    },
-}
-
-# Words to ignore in dynamic theme extraction
+# ── Stop words — common English words to filter from phrase extraction ──
 STOP_WORDS = {
     "the", "a", "an", "is", "it", "was", "has", "have", "had", "been", "be",
     "are", "were", "do", "does", "did", "will", "would", "could", "should",
@@ -120,84 +27,112 @@ STOP_WORDS = {
     "great", "nice", "best", "love", "product", "buy", "bought", "really",
     "well", "still", "need", "try", "tried", "first", "back", "time", "day",
     "days", "month", "months", "made", "way", "going", "am", "many", "lot",
-    "new", "old", "long", "now", "because", "since", "after", "if",
+    "new", "old", "long", "now", "because", "since", "if", "then", "okay",
+    "thing", "things", "came", "come", "say", "said", "know", "think",
+    "thought", "look", "looking", "want", "wanted", "give", "gave", "take",
+    "took", "tell", "told", "see", "saw", "seem", "seems", "keep", "start",
+    "started", "work", "works", "worked", "working", "put", "end", "ended",
+    "last", "went", "done", "doing", "being", "getting", "goes",
+    "star", "stars", "review", "reviews", "rating", "rate", "rated",
+    "amazon", "flipkart", "online", "ordered", "order", "received",
+    "feels", "feel", "felt", "makes", "making", "having", "applying",
+    "applied", "apply", "caused", "causes", "cause", "result", "results",
+    "actually", "really", "little", "bit", "right", "maybe", "anything",
+    "everything", "something", "nothing", "already", "always", "never",
+    "often", "usually", "sometimes", "kind", "sort", "quite", "rather",
+    "however", "although", "though", "enough", "almost", "around",
+    "during", "between", "through", "against", "without", "upon",
+    "while", "until", "within", "along", "across", "toward", "towards",
+    "becomes", "become", "became", "remain", "remained", "remains",
+    "given", "shown", "based", "supposed", "expected", "left",
+    "visible", "showed", "show", "showing", "shows",
+    "takes", "took", "taken", "taking",
+    "hours", "hour", "minutes", "minute", "weeks", "week",
+    "leaves", "leave", "leaving", "half", "full", "whole",
+    "formula", "formulation", "basically", "especially",
+    "completely", "absolutely", "definitely", "probably", "simply",
+    "literally", "highly", "extremely", "totally",
+    "barely", "finished", "daily", "monthly", "weekly", "overnight",
+    "noticed", "notice", "changed", "change", "changes", "compared",
+    "helped", "help", "helps", "worked", "stopped", "continues",
+}
+
+# ── Icon mapping for common complaint words (cosmetic enhancement) ──────
+_ICON_MAP = {
+    "price": "💰", "expensive": "💰", "cost": "💰", "money": "💰",
+    "cheap": "💰", "overpriced": "💰", "worth": "💰",
+    "delivery": "🚚", "shipping": "🚚", "late": "🚚", "delayed": "🚚",
+    "quality": "⚠️", "broken": "⚠️", "defective": "⚠️", "damage": "⚠️",
+    "smell": "👃", "scent": "👃", "odor": "👃", "fragrance": "👃",
+    "size": "📏", "small": "📏", "tiny": "📏", "quantity": "📏",
+    "dry": "🏜️", "dryness": "🏜️", "flaky": "🏜️",
+    "greasy": "💧", "oily": "💧", "sticky": "💧",
+    "irritation": "🔥", "itch": "🔥", "burn": "🔥", "rash": "🔥",
+    "hair": "💇", "scalp": "💇", "fall": "💇", "thinning": "💇",
+    "taste": "👅", "flavor": "👅", "bitter": "👅",
+    "battery": "🔋", "charge": "🔋", "power": "🔋",
+    "screen": "📱", "display": "📱",
+    "noise": "🔊", "loud": "🔊", "sound": "🔊",
+    "heat": "🌡️", "hot": "🌡️", "overheat": "🌡️",
+    "fit": "👔", "comfortable": "👔", "tight": "👔", "loose": "👔",
+    "fake": "🔍", "counterfeit": "🔍", "original": "🔍",
+    "color": "🎨", "colour": "🎨", "fade": "🎨",
+    "leak": "📦", "packaging": "📦", "spill": "📦", "cap": "📦",
+    "slow": "⏳", "results": "⏳", "effect": "⏳",
+    "chemical": "⚗️", "ingredient": "⚗️", "paraben": "⚗️",
+    "software": "💻", "app": "💻", "bug": "💻", "crash": "💻",
+    "camera": "📷", "photo": "📷",
+    "material": "🧵", "fabric": "🧵",
+    "food": "🍽️", "stale": "🍽️", "expired": "🍽️",
+    "service": "📞", "support": "📞", "customer": "📞",
 }
 
 
-def _extract_dynamic_themes(reviews, reddit_posts, existing_themes_count):
-    """
-    Extract frequent complaint-related bigrams from reviews that weren't
-    already captured by predefined themes. Only triggers when predefined
-    themes captured few results.
-    """
-    if existing_themes_count >= 3:
-        return {}  # predefined themes are working well enough
+def _get_icon(phrase):
+    """Pick a relevant icon for a complaint phrase."""
+    for word in phrase.lower().split():
+        if word in _ICON_MAP:
+            return _ICON_MAP[word]
+    return "📊"
 
-    # Negative sentiment indicator words
-    negative_indicators = {
-        "bad", "poor", "worst", "terrible", "horrible", "awful", "hate",
-        "disappointed", "disappointing", "problem", "issue", "complaint",
-        "waste", "useless", "broken", "fail", "failed", "wrong", "worse",
-        "annoying", "frustrating", "regret", "return", "refund",
-    }
 
-    all_texts = []
-    for r in reviews:
-        if r.review_text and r.rating is not None and r.rating <= 3:
-            all_texts.append(r.review_text.lower())
-    for p in reddit_posts:
-        combined = ((p.title or "") + " " + (p.post_text or "")).lower()
-        if combined.strip():
-            all_texts.append(combined)
+def _group_phrases(top_phrases):
+    """Group overlapping phrases into distinct complaint themes."""
+    groups = []
+    used = set()
 
-    if not all_texts:
-        return {}
+    for phrase, count in top_phrases:
+        if phrase in used:
+            continue
 
-    # Count bigrams from negative reviews
-    bigram_counter = Counter()
-    for text in all_texts:
-        words = re.findall(r'[a-z]+', text)
-        words = [w for w in words if w not in STOP_WORDS and len(w) > 2]
-        for i in range(len(words) - 1):
-            bigram = f"{words[i]} {words[i+1]}"
-            bigram_counter[bigram] += 1
+        group_phrases = [(phrase, count)]
+        phrase_words = set(phrase.split())
+        used.add(phrase)
 
-    # Filter to bigrams that co-occur with negative sentiment
-    dynamic_themes = {}
-    total_reviews = len(reviews) if reviews else 1
+        for other, other_count in top_phrases:
+            if other in used:
+                continue
+            other_words = set(other.split())
+            shared = phrase_words & other_words
+            if shared and any(len(w) > 3 for w in shared):
+                group_phrases.append((other, other_count))
+                used.add(other)
 
-    for bigram, count in bigram_counter.most_common(10):
-        if count < 3:
-            break
-        words_in_bigram = set(bigram.split())
-        if words_in_bigram & negative_indicators:
-            continue  # skip pure negative words, want the actual topic
+        group_phrases.sort(key=lambda x: x[1], reverse=True)
+        groups.append({
+            "representative": group_phrases[0][0],
+            "total_count": group_phrases[0][1],
+            "all_words": set(w for p, _ in group_phrases for w in p.split()),
+        })
 
-        # Check if this bigram appears in negative-sentiment texts
-        negative_count = sum(
-            1 for text in all_texts if bigram in text
-        )
-        if negative_count >= 3:
-            theme_key = bigram.replace(" ", "_")
-            intensity = round((negative_count / total_reviews) * 100, 2) if total_reviews else 0
-            if intensity > 1:
-                dynamic_themes[theme_key] = {
-                    "intensity": intensity,
-                    "label": bigram.title(),
-                    "icon": "📊",
-                    "review_count": negative_count,
-                    "reddit_count": 0,
-                    "review_citations": [],
-                    "reddit_citations": [],
-                }
-
-    return dynamic_themes
+    groups.sort(key=lambda g: g["total_count"], reverse=True)
+    return groups
 
 
 def extract_complaint_signals(db: Session):
     """
-    Extract complaint themes from reviews and Reddit posts.
-    Combines predefined theme matching with dynamic extraction.
+    Extract complaint themes by mining actual review text.
+    Works with ANY product category — no hardcoded keywords.
 
     Returns dict: theme_key -> {
         intensity, label, icon,
@@ -212,59 +147,115 @@ def extract_complaint_signals(db: Session):
     if total_reviews == 0:
         return {}
 
+    # ── Phase 1: Identify complaint reviews ─────────────────────────
+    negative_reviews = [r for r in reviews
+                        if r.rating is not None and r.rating <= 3]
+    if len(negative_reviews) < max(3, total_reviews * 0.1):
+        negative_reviews = reviews  # use all if too few have low ratings
+
+    # ── Phase 2: Extract frequent n-grams ───────────────────────────
+    phrase_counter = Counter()
+    phrase_citations = defaultdict(list)
+    # Also track important single words for small-dataset fallback
+    word_counter = Counter()
+    word_citations = defaultdict(list)
+
+    for review in negative_reviews:
+        text = (review.review_text or "").lower()
+        words = [w for w in re.findall(r'[a-z]+', text)
+                 if w not in STOP_WORDS and len(w) > 2]
+
+        citation = {
+            "text": (review.review_text or "")[:200].strip(),
+            "product": review.product_name,
+            "brand": review.brand,
+            "rating": review.rating,
+            "source": review.source,
+        }
+
+        seen = set()
+        for n in [2, 3]:
+            for i in range(len(words) - n + 1):
+                phrase = " ".join(words[i:i + n])
+                if phrase not in seen:
+                    seen.add(phrase)
+                    phrase_counter[phrase] += 1
+                    if len(phrase_citations[phrase]) < 5:
+                        phrase_citations[phrase].append(citation)
+
+        # Track single important words
+        seen_words = set()
+        for w in words:
+            if w not in seen_words and len(w) > 3:
+                seen_words.add(w)
+                word_counter[w] += 1
+                if len(word_citations[w]) < 5:
+                    word_citations[w].append(citation)
+
+    # ── Phase 3: Filter + group into themes ─────────────────────────
+    min_count = max(2, int(total_reviews * 0.01))
+    top_phrases = [(p, c) for p, c in phrase_counter.most_common(200)
+                   if c >= min_count]
+
+    groups = _group_phrases(top_phrases)
+
+    # ── Phase 3b: Fallback — if too few n-gram themes, add top words ─
+    if len(groups) < 3:
+        used_words = set()
+        for g in groups:
+            used_words |= g["all_words"]
+        for word, count in word_counter.most_common(30):
+            if word in used_words or count < 2:
+                continue
+            groups.append({
+                "representative": word,
+                "total_count": count,
+                "all_words": {word},
+            })
+            used_words.add(word)
+            if len(groups) >= 10:
+                break
+        groups.sort(key=lambda g: g["total_count"], reverse=True)
+
+    # ── Phase 4: Build final results ────────────────────────────────
     results = {}
 
-    for theme_key, config in COMPLAINT_THEMES.items():
-        keywords = config["keywords"]
-        review_citations = []
+    for group in groups[:15]:
+        rep = group["representative"]
+        count = group["total_count"]
+        intensity = round((count / total_reviews) * 100, 2)
+
+        if intensity < 0.5:
+            continue
+
+        theme_key = rep.replace(" ", "_")
+        label = rep.title()
+        icon = _get_icon(rep)
+        citations = phrase_citations.get(rep, []) or word_citations.get(rep, [])
+
+        # ── Scan Reddit for matching words ──────────────────────────
+        theme_words = {w for w in group["all_words"] if len(w) > 3}
         reddit_citations = []
-
-        # ── Scan reviews ───────────────────────────────
-        for review in reviews:
-            text = (review.review_text or "").lower()
-            for kw in keywords:
-                if kw in text:
-                    review_citations.append({
-                        "text": (review.review_text or "")[:200].strip(),
-                        "product": review.product_name,
-                        "brand": review.brand,
-                        "rating": review.rating,
-                        "source": review.source,
-                    })
-                    break  # count each review once per theme
-
-        # ── Scan Reddit ────────────────────────────────
         for post in reddit_posts:
             combined = ((post.title or "") + " " + (post.post_text or "")).lower()
-            for kw in keywords:
-                if kw in combined:
-                    reddit_citations.append({
-                        "title": post.title,
-                        "subreddit": post.subreddit,
-                        "upvotes": post.upvotes,
-                        "text": (post.post_text or "")[:200].strip(),
-                    })
+            if any(w in combined for w in theme_words):
+                reddit_citations.append({
+                    "title": post.title,
+                    "subreddit": post.subreddit,
+                    "upvotes": post.upvotes,
+                    "text": (post.post_text or "")[:200].strip(),
+                })
+                if len(reddit_citations) >= 5:
                     break
 
-        review_count = len(review_citations)
-        reddit_count = len(reddit_citations)
-
-        if review_count > 0 or reddit_count > 0:
-            intensity = round((review_count / total_reviews) * 100, 2)
-            results[theme_key] = {
-                "intensity": intensity,
-                "label": config["label"],
-                "icon": config["icon"],
-                "review_count": review_count,
-                "reddit_count": reddit_count,
-                "review_citations": review_citations[:5],
-                "reddit_citations": reddit_citations[:5],
-            }
-
-    # ── Dynamic themes for unmatched data ──────────────
-    dynamic = _extract_dynamic_themes(reviews, reddit_posts, len(results))
-    for key, val in dynamic.items():
-        if key not in results:
-            results[key] = val
+        results[theme_key] = {
+            "intensity": intensity,
+            "label": label,
+            "icon": icon,
+            "review_count": count,
+            "reddit_count": len(reddit_citations),
+            "review_citations": citations[:5],
+            "reddit_citations": reddit_citations[:5],
+        }
 
     return results

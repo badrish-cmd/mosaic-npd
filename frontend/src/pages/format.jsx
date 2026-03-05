@@ -164,7 +164,7 @@ export default function FormatData() {
   const [step, setStep] = useState(1); // 1=upload, 2=map, 3=preview
   const fileRef = useRef(null);
 
-  const targetCols = REQUIRED_COLS[selectedType] || [];
+  const targetCols = useMemo(() => REQUIRED_COLS[selectedType] || [], [selectedType]);
   const currentType = DATA_TYPES.find((t) => t.key === selectedType);
 
   /* ── Handle file ─────────────────────────────────────────── */

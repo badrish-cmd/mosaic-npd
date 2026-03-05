@@ -5,6 +5,7 @@ from app import models
 import pandas as pd
 import numpy as np
 import io
+import traceback
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
@@ -91,18 +92,24 @@ async def upload_reviews(file: UploadFile = File(...), db: Session = Depends(get
     df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
     validate_columns(df, "reviews")
 
-    for _, row in df.iterrows():
-        review = models.ReviewRaw(
-            product_name=safe_str(row.get("product_name")),
-            brand=safe_str(row.get("brand")),
-            category=safe_str(row.get("category")),
-            review_text=safe_str(row.get("review_text")),
-            rating=safe_float(row.get("rating")),
-            source=safe_str(row.get("source"), "upload"),
-        )
-        db.add(review)
+    try:
+        for _, row in df.iterrows():
+            review = models.ReviewRaw(
+                product_name=safe_str(row.get("product_name")),
+                brand=safe_str(row.get("brand")),
+                category=safe_str(row.get("category")),
+                review_text=safe_str(row.get("review_text")),
+                rating=safe_float(row.get("rating")),
+                source=safe_str(row.get("source"), "upload"),
+            )
+            db.add(review)
 
-    db.commit()
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Upload reviews error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     return {"message": f"Reviews uploaded successfully ({len(df)} rows)"}
 
 
@@ -112,17 +119,23 @@ async def upload_reddit(file: UploadFile = File(...), db: Session = Depends(get_
     df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
     validate_columns(df, "reddit")
 
-    for _, row in df.iterrows():
-        record = models.RedditRaw(
-            subreddit=safe_str(row.get("subreddit"), "unknown"),
-            title=safe_str(row.get("title")),
-            post_text=safe_str(row.get("post_text")),
-            upvotes=safe_int(row.get("upvotes")),
-            keyword_detected=clean(row.get("keyword_detected")),
-        )
-        db.add(record)
+    try:
+        for _, row in df.iterrows():
+            record = models.RedditRaw(
+                subreddit=safe_str(row.get("subreddit"), "unknown"),
+                title=safe_str(row.get("title")),
+                post_text=safe_str(row.get("post_text")),
+                upvotes=safe_int(row.get("upvotes")),
+                keyword_detected=clean(row.get("keyword_detected")),
+            )
+            db.add(record)
 
-    db.commit()
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Upload reddit error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     return {"message": f"Reddit data uploaded successfully ({len(df)} rows)"}
 
 
@@ -132,16 +145,22 @@ async def upload_trends(file: UploadFile = File(...), db: Session = Depends(get_
     df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
     validate_columns(df, "trends")
 
-    for _, row in df.iterrows():
-        record = models.TrendRaw(
-            keyword=safe_str(row.get("keyword")),
-            search_volume=safe_int(row.get("search_volume")),
-            growth_percent=safe_float(row.get("growth_percent")),
-            timeframe=clean(row.get("timeframe")),
-        )
-        db.add(record)
+    try:
+        for _, row in df.iterrows():
+            record = models.TrendRaw(
+                keyword=safe_str(row.get("keyword")),
+                search_volume=safe_int(row.get("search_volume")),
+                growth_percent=safe_float(row.get("growth_percent")),
+                timeframe=clean(row.get("timeframe")),
+            )
+            db.add(record)
 
-    db.commit()
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Upload trends error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     return {"message": f"Trends data uploaded successfully ({len(df)} rows)"}
 
 
@@ -151,18 +170,24 @@ async def upload_competition(file: UploadFile = File(...), db: Session = Depends
     df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
     validate_columns(df, "competition")
 
-    for _, row in df.iterrows():
-        record = models.CompetitionProduct(
-            product_name=safe_str(row.get("product_name")),
-            brand=safe_str(row.get("brand")),
-            category=safe_str(row.get("category")),
-            format=safe_str(row.get("format")),
-            price=safe_float(row.get("price")),
-            ingredient_focus=clean(row.get("ingredient_focus")),
-        )
-        db.add(record)
+    try:
+        for _, row in df.iterrows():
+            record = models.CompetitionProduct(
+                product_name=safe_str(row.get("product_name")),
+                brand=safe_str(row.get("brand")),
+                category=safe_str(row.get("category")),
+                format=safe_str(row.get("format")),
+                price=safe_float(row.get("price")),
+                ingredient_focus=clean(row.get("ingredient_focus")),
+            )
+            db.add(record)
 
-    db.commit()
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Upload competition error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     return {"message": f"Competition data uploaded successfully ({len(df)} rows)"}
 
 
@@ -233,7 +258,13 @@ async def upload_cumulative(file: UploadFile = File(...), db: Session = Depends(
             ))
             counts["competition"] += 1
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Upload cumulative error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
     total = sum(counts.values())
     breakdown = ", ".join(f"{k}: {v}" for k, v in counts.items() if v > 0)

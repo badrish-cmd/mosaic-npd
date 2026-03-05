@@ -5,6 +5,8 @@ consumer profile, formulation direction, price point, format, competitive
 positioning, and cited consumer evidence.
 """
 
+from collections import Counter
+
 # ── Ingredient knowledge base ────────────────────────────────────────
 INGREDIENT_POOL = {
     "rosemary":      {"name": "Rosemary Oil",         "benefit": "DHT blocking & scalp stimulation"},
@@ -142,6 +144,48 @@ THEME_DIRECTIONS = {
 
 # ── Helper functions ─────────────────────────────────────────────────
 
+def _get_direction_for_theme(theme, theme_label):
+    """Get concept direction for a theme, with generic fallback for unknown themes."""
+    if theme in THEME_DIRECTIONS:
+        return THEME_DIRECTIONS[theme]
+
+    # Generic fallback for dynamically detected themes
+    return {
+        "angle": f"addressing {theme_label.lower()} with improved formulation",
+        "personas": [
+            f"Consumers actively seeking solutions for {theme_label.lower()}",
+            f"Users who've experienced {theme_label.lower()} with current products",
+        ],
+        "names": [
+            theme_label.split()[0] + "Pro",
+            theme_label.split()[0] + "Fix",
+            "Solution+" + theme_label.split()[0],
+            "Advanced" + theme_label.split()[0],
+        ],
+        "positioning": f"Purpose-built solution that directly addresses {theme_label.lower()} — backed by consumer evidence",
+        "preferred_formats": [0, 1, 7],
+    }
+
+
+def _detect_category_from_data(opportunities, db_competition):
+    """Infer product category from actual uploaded data."""
+    categories = Counter()
+    for c in db_competition:
+        cat = (c.category or "").strip()
+        if cat:
+            categories[cat] += 1
+    if categories:
+        return categories.most_common(1)[0][0]
+    # Infer from theme labels
+    for opp in opportunities:
+        label = opp.get("theme_label", "").lower()
+        if any(w in label for w in ["hair", "scalp", "shampoo"]):
+            return "Haircare"
+        if any(w in label for w in ["skin", "face", "acne"]):
+            return "Skincare"
+    return "Consumer Product"
+
+
 def _find_format_gap(competition, preferred_indices=None):
     """Identify underserved product formats from competitive landscape."""
     existing_formats = {}
@@ -247,6 +291,7 @@ def generate_concepts(opportunities, db_trends, db_competition):
     prices = [c.price for c in db_competition if c.price]
     avg_price = sum(prices) / len(prices) if prices else 700
     trending_ingredients = _match_trending_ingredients(db_trends, db_competition)
+    detected_category = _detect_category_from_data(opportunities, db_competition)
 
     concept_idx = 0
 
@@ -255,9 +300,8 @@ def generate_concepts(opportunities, db_trends, db_competition):
             continue
 
         theme = opp["theme"]
-        direction = THEME_DIRECTIONS.get(theme)
-        if not direction:
-            direction = THEME_DIRECTIONS.get("hair_fall")  # safe fallback
+        theme_label = opp.get("theme_label", theme.replace("_", " ").title())
+        direction = _get_direction_for_theme(theme, theme_label)
 
         # ── Select ingredients ──────────────────────────
         if trending_ingredients and len(trending_ingredients) >= 2:
@@ -373,7 +417,7 @@ and evidence-backed formulation.""".strip()
 
         concepts.append({
             "product_name": product_name,
-            "category": theme_label,
+            "category": detected_category,
             "persona": persona,
             "target_consumer": persona,
             "format": fmt["format"],

@@ -778,22 +778,29 @@ function EmptyState({ title, description }) {
    ════════════════════════════════════════════════════════════════════════════ */
 export default function Dashboard() {
   const [tab, setTab] = useState("overview");
+  const [status, setStatus] = useState(null);
   const [complaints, setComplaints] = useState(null);
   const [opportunities, setOpportunities] = useState(null);
   const [concepts, setConcepts] = useState(null);
-  const [loading, setLoading] = useState({ complaints: false, opportunities: false, concepts: false });
+  const [loading, setLoading] = useState({ status: false, complaints: false, opportunities: false, concepts: false, analysis: false });
   const [errors, setErrors] = useState({});
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [, setAnalysisRan] = useState(false);
 
   /* Fetch helpers */
-  const fetchData = useCallback(async (endpoint, setter, key) => {
+  const fetchData = useCallback(async (endpoint, setter, key, method = "GET") => {
     setLoading(prev => ({ ...prev, [key]: true }));
     setErrors(prev => ({ ...prev, [key]: null }));
     try {
-      const res = await fetch(`${API}${endpoint}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const opts = method === "POST" ? { method: "POST" } : {};
+      const res = await fetch(`${API}${endpoint}`, opts);
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => `HTTP ${res.status}`);
+        throw new Error(errBody || `HTTP ${res.status}`);
+      }
       const data = await res.json();
       setter(data);
+      return data;
     } catch (e) {
       setErrors(prev => ({ ...prev, [key]: e.message }));
     } finally {
@@ -801,14 +808,54 @@ export default function Dashboard() {
     }
   }, []);
 
-  const refreshAll = useCallback(() => {
-    fetchData("/analysis/complaints", setComplaints, "complaints");
+  /* Load only saved/cached data — no computation */
+  const loadSavedData = useCallback(() => {
+    fetchData("/analysis/status", setStatus, "status");
     fetchData("/analysis/opportunities", setOpportunities, "opportunities");
     fetchData("/analysis/concepts", setConcepts, "concepts");
     setLastRefresh(new Date());
   }, [fetchData]);
 
-  useEffect(() => { refreshAll(); }, [refreshAll]);
+  /* Explicit: run full analysis pipeline */
+  const runAnalysis = useCallback(async () => {
+    setLoading(prev => ({ ...prev, analysis: true }));
+    setErrors(prev => ({ ...prev, analysis: null }));
+    try {
+      const res = await fetch(`${API}/analysis/run`, { method: "POST" });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => `HTTP ${res.status}`);
+        throw new Error(errBody || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setComplaints(data.complaints);
+      setOpportunities(data.opportunities);
+      setConcepts(data.concepts);
+      setAnalysisRan(true);
+      setLastRefresh(new Date());
+      // Refresh status counts
+      fetchData("/analysis/status", setStatus, "status");
+    } catch (e) {
+      setErrors(prev => ({ ...prev, analysis: e.message }));
+    } finally {
+      setLoading(prev => ({ ...prev, analysis: false }));
+    }
+  }, [fetchData]);
+
+  /* Load complaints on-demand when tab is clicked */
+  const loadComplaints = useCallback(() => {
+    fetchData("/analysis/complaints", setComplaints, "complaints");
+  }, [fetchData]);
+
+  const generateConcepts = useCallback(() => {
+    fetchData("/analysis/concepts", setConcepts, "concepts", "POST");
+  }, [fetchData]);
+
+  const computeOpportunities = useCallback(() => {
+    fetchData("/analysis/opportunities", setOpportunities, "opportunities", "POST");
+  }, [fetchData]);
+
+  /* On mount: load ONLY saved data, no computation */
+  useEffect(() => { loadSavedData(); }, [loadSavedData]);
 
   /* Computed stats */
   const totalConcepts = concepts?.length || 0;
@@ -818,11 +865,14 @@ export default function Dashboard() {
   const complaintCount = complaints ? Object.keys(complaints).length : 0;
   const oppCount = opportunities?.length || 0;
 
+  const hasData = status && (status.reviews > 0 || status.reddit > 0 || status.trends > 0 || status.competition > 0);
+  const hasAnalysis = oppCount > 0 || totalConcepts > 0;
+
   const sortedOpportunities = opportunities
     ? [...opportunities].sort((a, b) => b.opportunity_score - a.opportunity_score)
     : [];
 
-  const isLoading = loading.complaints || loading.opportunities || loading.concepts;
+  const isLoading = loading.complaints || loading.opportunities || loading.concepts || loading.analysis;
 
   return (
     <>
@@ -944,24 +994,47 @@ export default function Dashboard() {
                 Updated {lastRefresh.toLocaleTimeString()}
               </span>
             )}
-            <button onClick={refreshAll} disabled={isLoading} style={{
+            <button onClick={loadSavedData} disabled={isLoading} style={{
               padding: "9px 20px", borderRadius: 10,
-              background: isLoading ? "rgba(51,65,85,0.3)" : "rgba(245,158,11,0.1)",
-              border: "1px solid rgba(245,158,11,0.25)",
-              color: isLoading ? "#475569" : "#fbbf24",
+              background: isLoading ? "rgba(51,65,85,0.3)" : "rgba(51,65,85,0.4)",
+              border: "1px solid rgba(71,85,105,0.4)",
+              color: isLoading ? "#475569" : "#94a3b8",
               fontSize: 13, fontWeight: 600, cursor: isLoading ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", gap: 7,
               transition: "all 0.2s", outline: "none",
             }}
-              onMouseOver={e => { if (!isLoading) e.currentTarget.style.background = "rgba(245,158,11,0.18)"; }}
-              onMouseOut={e => { e.currentTarget.style.background = isLoading ? "rgba(51,65,85,0.3)" : "rgba(245,158,11,0.1)"; }}
+              onMouseOver={e => { if (!isLoading) e.currentTarget.style.color = "#e2e8f0"; }}
+              onMouseOut={e => { e.currentTarget.style.color = isLoading ? "#475569" : "#94a3b8"; }}
             >
               <svg width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2}
-                style={{ animation: isLoading ? "spin 1s linear infinite" : "none" }}>
+                style={{ animation: loading.status ? "spin 1s linear infinite" : "none" }}>
                 <path d="M1 4s1.5-3 6-3 6.5 3.5 6 6.5M13 10s-1.5 3-6 3-6.5-3.5-6-6.5" strokeLinecap="round" />
               </svg>
-              {isLoading ? "Refreshing…" : "Refresh"}
+              Reload
             </button>
+            {hasData && (
+              <button onClick={runAnalysis} disabled={loading.analysis} style={{
+                padding: "9px 20px", borderRadius: 10,
+                background: loading.analysis ? "rgba(51,65,85,0.3)" : "rgba(245,158,11,0.12)",
+                border: "1px solid rgba(245,158,11,0.3)",
+                color: loading.analysis ? "#475569" : "#fbbf24",
+                fontSize: 13, fontWeight: 700, cursor: loading.analysis ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 7,
+                transition: "all 0.2s", outline: "none",
+              }}
+                onMouseOver={e => { if (!loading.analysis) e.currentTarget.style.background = "rgba(245,158,11,0.22)"; }}
+                onMouseOut={e => { e.currentTarget.style.background = loading.analysis ? "rgba(51,65,85,0.3)" : "rgba(245,158,11,0.12)"; }}
+              >
+                {loading.analysis && (
+                  <div style={{
+                    width: 14, height: 14, borderRadius: "50%",
+                    border: "2px solid rgba(245,158,11,0.2)", borderTopColor: "#f59e0b",
+                    animation: "spin 0.8s linear infinite",
+                  }} />
+                )}
+                {loading.analysis ? "Analyzing…" : "▶ Run Full Analysis"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -982,6 +1055,48 @@ export default function Dashboard() {
         {/* ─── OVERVIEW TAB ─────────────────────────────────────── */}
         {tab === "overview" && (
           <>
+            {/* Data Status Banner — show what's uploaded */}
+            {status && !hasAnalysis && (
+              <div className="fade-up" style={{
+                ...cardBase, padding: "24px 28px", marginBottom: 24,
+                borderColor: hasData ? "rgba(245,158,11,0.2)" : "rgba(51,65,85,0.5)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                  <span style={{ fontSize: 20 }}>{hasData ? "📂" : "📭"}</span>
+                  <div>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: "#e2e8f0", margin: 0 }}>
+                      {hasData ? "Data Uploaded — Ready to Analyze" : "No Data Uploaded Yet"}
+                    </h3>
+                    <p style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
+                      {hasData ? "Click \"Run Full Analysis\" to generate insights from your data." : "Upload data files on the Upload page to get started."}
+                    </p>
+                  </div>
+                </div>
+                {hasData && (
+                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                    {[
+                      { label: "Reviews", count: status.reviews, icon: "⭐" },
+                      { label: "Reddit", count: status.reddit, icon: "💬" },
+                      { label: "Trends", count: status.trends, icon: "📈" },
+                      { label: "Competition", count: status.competition, icon: "🏢" },
+                    ].map(d => (
+                      <div key={d.label} style={{
+                        padding: "10px 16px", borderRadius: 8,
+                        background: d.count > 0 ? "rgba(34,197,94,0.06)" : "rgba(51,65,85,0.3)",
+                        border: `1px solid ${d.count > 0 ? "rgba(34,197,94,0.2)" : "rgba(51,65,85,0.4)"}`,
+                        display: "flex", alignItems: "center", gap: 8,
+                      }}>
+                        <span>{d.icon}</span>
+                        <span style={{ fontSize: 12, color: d.count > 0 ? "#4ade80" : "#475569", fontWeight: 600 }}>
+                          {d.count} {d.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* AI Insight Summary */}
             {!loading.concepts && concepts && concepts.length > 0 && (
               <AIInsightSummary concepts={concepts} />
@@ -1120,11 +1235,22 @@ export default function Dashboard() {
         {tab === "complaints" && (
           <div className="fade-up" style={{ animationDelay: "0.05s" }}>
             <div style={{ ...cardBase, padding: "28px 30px", maxWidth: 700 }}>
-              <div style={{ marginBottom: 24 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0", margin: 0 }}>Consumer Complaint Mining</h2>
-                <p style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>
-                  Cited complaint themes from Amazon, Flipkart, Nykaa reviews and Reddit communities. Each bar shows intensity + evidence count.
-                </p>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
+                <div>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0", margin: 0 }}>Consumer Complaint Mining</h2>
+                  <p style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>
+                    Cited complaint themes from reviews and Reddit communities. Each bar shows intensity + evidence count.
+                  </p>
+                </div>
+                {!complaints && !loading.complaints && (
+                  <button onClick={loadComplaints} style={{
+                    padding: "8px 18px", borderRadius: 8,
+                    background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)",
+                    color: "#fbbf24", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                  }}>
+                    Load Complaints
+                  </button>
+                )}
               </div>
               {loading.complaints ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -1144,6 +1270,20 @@ export default function Dashboard() {
         {/* ─── OPPORTUNITIES TAB ────────────────────────────────── */}
         {tab === "opportunities" && (
           <div className="fade-up" style={{ animationDelay: "0.05s" }}>
+            {/* Compute button */}
+            {sortedOpportunities.length === 0 && !loading.opportunities && !errors.opportunities && (
+              <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
+                <button onClick={computeOpportunities} disabled={loading.opportunities} style={{
+                  padding: "10px 22px", borderRadius: 10,
+                  background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)",
+                  color: "#fbbf24", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 8,
+                }}>
+                  <span style={{ fontSize: 16 }}>📊</span> Compute Opportunities
+                </button>
+                <span style={{ fontSize: 11, color: "#475569" }}>Scores opportunities from uploaded data</span>
+              </div>
+            )}
             {loading.opportunities ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {[1, 2, 3, 4].map(i => <Skeleton key={i} height={80} radius={14} />)}
@@ -1167,6 +1307,22 @@ export default function Dashboard() {
         {/* ─── CONCEPTS TAB ─────────────────────────────────────── */}
         {tab === "concepts" && (
           <div className="fade-up" style={{ animationDelay: "0.05s" }}>
+            {/* Generate button */}
+            <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
+              <button onClick={generateConcepts} disabled={loading.concepts} style={{
+                padding: "10px 22px", borderRadius: 10,
+                background: loading.concepts ? "rgba(51,65,85,0.3)" : "rgba(245,158,11,0.12)",
+                border: "1px solid rgba(245,158,11,0.3)",
+                color: loading.concepts ? "#475569" : "#fbbf24",
+                fontSize: 13, fontWeight: 600, cursor: loading.concepts ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 8,
+                transition: "all 0.2s", outline: "none",
+              }}>
+                <span style={{ fontSize: 16 }}>🧪</span>
+                {loading.concepts ? "Generating…" : "Generate / Regenerate Concepts"}
+              </button>
+              <span style={{ fontSize: 11, color: "#475569" }}>Analyzes uploaded data and invents product concepts</span>
+            </div>
             {loading.concepts ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
                 {[1, 2, 3].map(i => <Skeleton key={i} height={200} radius={14} />)}
@@ -1180,13 +1336,13 @@ export default function Dashboard() {
                 <p style={{ color: "#fca5a5", fontSize: 13 }}>Error: {errors.concepts}</p>
               </div>
             ) : (
-              <EmptyState title="No Concepts Invented" description="Product concepts are invented from validated consumer signals. Upload data and run analysis first." />
+              <EmptyState title="No Concepts Invented" description="Click 'Generate / Regenerate Concepts' above after uploading data to create product concepts." />
             )}
           </div>
         )}
 
         {/* ─── Error banner (non-blocking) ──────────────────────── */}
-        {Object.entries(errors).some(([, v]) => v) && tab === "overview" && (
+        {Object.entries(errors).some(([, v]) => v) && (
           <div className="fade-up" style={{
             marginTop: 28,
             padding: "16px 20px", borderRadius: 12,

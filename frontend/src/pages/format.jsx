@@ -121,34 +121,98 @@ function downloadFile(content, filename) {
 
 /* ══════════════════════════════════════════════════════════════════════
    AUTO-MAP — guess which source column matches a target column
+   Uses a synonym dictionary for smart matching across diverse CSV formats
    ══════════════════════════════════════════════════════════════════════ */
+const SYNONYMS = {
+  product_name:     ["product_name", "product name", "item name", "item", "product", "name", "product_title", "product title", "item_name", "asin_title"],
+  brand:            ["brand", "manufacturer", "company", "brand_name", "brand name", "seller", "vendor", "maker"],
+  category:         ["category", "product category", "product_category", "type", "product_type", "product type", "segment", "department"],
+  review_text:      ["review_text", "review text", "review", "customer feedback", "feedback", "comment", "comments", "text", "body", "content", "description", "review_body", "review body", "customer_feedback", "review_content"],
+  rating:           ["rating", "star rating", "star_rating", "stars", "score", "star", "review_rating", "review rating", "overall_rating", "overall rating", "num_stars"],
+  source:           ["source", "review platform", "review_platform", "platform", "marketplace", "channel", "website", "site", "origin"],
+  subreddit:        ["subreddit", "sub", "community", "forum", "subreddit_name"],
+  title:            ["title", "post title", "post_title", "headline", "subject", "thread_title", "thread title"],
+  post_text:        ["post_text", "post text", "selftext", "self_text", "body", "content", "post_body", "post body", "text", "description", "post_content"],
+  upvotes:          ["upvotes", "upvote", "ups", "score", "votes", "points", "karma", "up_votes", "up votes", "likes"],
+  keyword_detected: ["keyword_detected", "keyword detected", "keyword", "tag", "label", "detected_keyword", "detected keyword", "flair", "topic"],
+  keyword:          ["keyword", "search_term", "search term", "query", "term", "search_keyword", "search keyword", "search_query"],
+  search_volume:    ["search_volume", "search volume", "volume", "monthly_searches", "monthly searches", "searches", "avg_monthly_searches"],
+  growth_percent:   ["growth_percent", "growth percent", "growth", "growth_rate", "growth rate", "trend", "change", "growth_%", "yoy_growth", "percent_change"],
+  timeframe:        ["timeframe", "time_frame", "time frame", "period", "duration", "date_range", "date range", "window", "time_period"],
+  format:           ["format", "product_format", "product format", "type", "form", "form_factor", "form factor", "variant"],
+  price:            ["price", "mrp", "cost", "amount", "retail_price", "retail price", "selling_price", "selling price", "unit_price"],
+  ingredient_focus: ["ingredient_focus", "ingredient focus", "ingredient", "key_ingredient", "key ingredient", "ingredients", "active_ingredient", "active ingredient", "main_ingredient", "composition"],
+  data_type:        ["data_type", "data type", "type", "row_type", "row type", "record_type", "record type"],
+  date:             ["date", "review_date", "review date", "posted_date", "posted date", "created", "created_at", "timestamp", "datetime"],
+  verified:         ["verified", "verified_purchase", "verified purchase", "is_verified", "verified_buyer"],
+};
+
 function autoMap(sourceHeaders, targetCols) {
   const mapping = {};
+  const used = new Set();
+  const lowerHeaders = sourceHeaders.map(h => h.toLowerCase().trim());
+
   for (const target of targetCols) {
-    // exact match (case-insensitive)
-    const exact = sourceHeaders.find(
-      (h) => h.toLowerCase().trim() === target.toLowerCase()
-    );
-    if (exact) { mapping[target] = exact; continue; }
+    // 1. Exact match
+    const exactIdx = lowerHeaders.findIndex((h, i) => !used.has(i) && h === target.toLowerCase());
+    if (exactIdx >= 0) { mapping[target] = sourceHeaders[exactIdx]; used.add(exactIdx); continue; }
 
-    // fuzzy: check if column contains the target words
+    // 2. Synonym match
+    const syns = SYNONYMS[target] || [];
+    let found = false;
+    for (const syn of syns) {
+      const synIdx = lowerHeaders.findIndex((h, i) => !used.has(i) && h === syn);
+      if (synIdx >= 0) { mapping[target] = sourceHeaders[synIdx]; used.add(synIdx); found = true; break; }
+    }
+    if (found) continue;
+
+    // 3. Partial synonym match (contains)
+    for (const syn of syns) {
+      const partIdx = lowerHeaders.findIndex((h, i) => !used.has(i) && (h.includes(syn) || syn.includes(h)));
+      if (partIdx >= 0) { mapping[target] = sourceHeaders[partIdx]; used.add(partIdx); found = true; break; }
+    }
+    if (found) continue;
+
+    // 4. Fuzzy word overlap
     const words = target.split("_");
-    const fuzzy = sourceHeaders.find((h) => {
-      const hl = h.toLowerCase();
-      return words.every((w) => hl.includes(w));
+    const fuzzyIdx = lowerHeaders.findIndex((h, i) => {
+      if (used.has(i)) return false;
+      return words.every(w => h.includes(w));
     });
-    if (fuzzy) { mapping[target] = fuzzy; continue; }
+    if (fuzzyIdx >= 0) { mapping[target] = sourceHeaders[fuzzyIdx]; used.add(fuzzyIdx); continue; }
 
-    // partial: any overlap
-    const partial = sourceHeaders.find((h) => {
-      const hl = h.toLowerCase();
-      return words.some((w) => w.length > 2 && hl.includes(w));
+    // 5. Partial word match (any significant word)
+    const partialIdx = lowerHeaders.findIndex((h, i) => {
+      if (used.has(i)) return false;
+      return words.some(w => w.length > 3 && h.includes(w));
     });
-    if (partial && !Object.values(mapping).includes(partial)) {
-      mapping[target] = partial;
+    if (partialIdx >= 0 && !Object.values(mapping).includes(sourceHeaders[partialIdx])) {
+      mapping[target] = sourceHeaders[partialIdx]; used.add(partialIdx);
     }
   }
   return mapping;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   AUTO-DETECT DATA TYPE — guess which format the file most likely is
+   ══════════════════════════════════════════════════════════════════════ */
+function detectDataType(sourceHeaders) {
+  const lowerHeaders = sourceHeaders.map(h => h.toLowerCase().trim());
+  const scores = {};
+
+  for (const [type, cols] of Object.entries(REQUIRED_COLS)) {
+    if (type === "cumulative") continue; // skip cumulative for auto-detect
+    let matched = 0;
+    for (const col of cols) {
+      const syns = SYNONYMS[col] || [col];
+      const found = syns.some(syn => lowerHeaders.some(h => h === syn || h.includes(syn) || syn.includes(h)));
+      if (found) matched++;
+    }
+    scores[type] = matched / cols.length;
+  }
+
+  const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+  return best && best[1] > 0.3 ? best[0] : "reviews"; // default to reviews if nothing matches well
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -181,13 +245,16 @@ export default function FormatData() {
         const rows = parsed.slice(1);
         setSourceHeaders(headers);
         setSourceRows(rows);
-        const auto = autoMap(headers, REQUIRED_COLS[selectedType]);
+        // Auto-detect which data type this file looks like
+        const detected = detectDataType(headers);
+        setSelectedType(detected);
+        const auto = autoMap(headers, REQUIRED_COLS[detected]);
         setMapping(auto);
         setStep(2);
       };
       reader.readAsText(f);
     },
-    [selectedType]
+    []
   );
 
   const handleDrop = useCallback(
@@ -208,25 +275,38 @@ export default function FormatData() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  /* ── Build mapped data ───────────────────────────────────── */
+  /* ── Build mapped data — preserves ALL columns ──────────── */
+  const unmappedSourceCols = useMemo(() => {
+    const mappedSrcCols = new Set(Object.values(mapping));
+    return sourceHeaders.filter(h => !mappedSrcCols.has(h));
+  }, [sourceHeaders, mapping]);
+
+  const allOutputHeaders = useMemo(() => [...targetCols, ...unmappedSourceCols], [targetCols, unmappedSourceCols]);
+
   const mappedRows = useMemo(() => {
     if (!sourceRows.length) return [];
-    return sourceRows.map((row) =>
-      targetCols.map((col) => {
+    return sourceRows.map((row) => {
+      const mapped = targetCols.map((col) => {
         const srcCol = mapping[col];
         if (!srcCol) return "";
         const idx = sourceHeaders.indexOf(srcCol);
         return idx >= 0 ? (row[idx] ?? "") : "";
-      })
-    );
-  }, [sourceRows, sourceHeaders, mapping, targetCols]);
+      });
+      // Append unmapped source columns (preserve all data)
+      const extra = unmappedSourceCols.map(col => {
+        const idx = sourceHeaders.indexOf(col);
+        return idx >= 0 ? (row[idx] ?? "") : "";
+      });
+      return [...mapped, ...extra];
+    });
+  }, [sourceRows, sourceHeaders, mapping, targetCols, unmappedSourceCols]);
 
   const mappedCount = Object.keys(mapping).length;
   const totalRequired = targetCols.length;
 
   /* ── Download ────────────────────────────────────────────── */
   const handleDownload = () => {
-    const csv = generateCSV(targetCols, mappedRows);
+    const csv = generateCSV(allOutputHeaders, mappedRows);
     downloadFile(csv, `${selectedType}_formatted.csv`);
   };
 
@@ -319,64 +399,8 @@ export default function FormatData() {
         {/* ─── STEP 1: Select type & upload ──────────────────── */}
         {step === 1 && (
           <div className="fade-up" style={{ animationDelay: "0.06s" }}>
-            {/* Data type selector */}
-            <div style={{ marginBottom: 22 }}>
-              <p style={{
-                fontSize: 11, color: "#64748b", letterSpacing: "0.08em",
-                fontWeight: 600, marginBottom: 10, textTransform: "uppercase",
-              }}>
-                Target Format
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
-                {DATA_TYPES.map((type) => {
-                  const active = selectedType === type.key;
-                  return (
-                    <button
-                      key={type.key}
-                      className="fmt-btn"
-                      onClick={() => { setSelectedType(type.key); reset(); }}
-                      style={{
-                        padding: "16px 14px", borderRadius: 12, textAlign: "center",
-                        background: active ? `${type.color}12` : "rgba(15,23,42,0.5)",
-                        border: `1.5px solid ${active ? `${type.color}50` : "rgba(51,65,85,0.4)"}`,
-                        boxShadow: active ? `0 0 20px ${type.color}15` : "none",
-                      }}
-                    >
-                      <div style={{ fontSize: 22, marginBottom: 6 }}>{type.icon}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: active ? type.color : "#94a3b8" }}>
-                        {type.label}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Required columns preview */}
-            <div style={{ ...cardBase, padding: "18px 22px", marginBottom: 22 }}>
-              <p style={{
-                fontSize: 11, color: "#64748b", letterSpacing: "0.08em",
-                fontWeight: 600, marginBottom: 10, textTransform: "uppercase",
-              }}>
-                Required columns for {currentType.label}
-              </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {targetCols.map((col) => (
-                  <span key={col} title={COL_HINTS[col]} style={{
-                    padding: "5px 12px", borderRadius: 7, fontSize: 12,
-                    fontFamily: "'JetBrains Mono', monospace", fontWeight: 500,
-                    background: `${currentType.color}10`,
-                    border: `1px solid ${currentType.color}28`,
-                    color: currentType.color,
-                    cursor: "help",
-                  }}>
-                    {col}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Drop zone */}
+            {/* Drop zone — upload first, type auto-detected */}
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -390,6 +414,7 @@ export default function FormatData() {
                 background: dragOver ? `${currentType.color}08` : "rgba(15,23,42,0.5)",
                 transition: "all 0.25s ease",
                 boxShadow: dragOver ? `0 0 0 4px ${currentType.color}10` : "none",
+                marginBottom: 22,
               }}
             >
               <input
@@ -412,14 +437,36 @@ export default function FormatData() {
                 </svg>
               </div>
               <p style={{ color: "#cbd5e1", fontWeight: 600, fontSize: 16, marginBottom: 6 }}>
-                {dragOver ? "Release to upload" : "Drop your CSV file here"}
+                {dragOver ? "Release to upload" : "Drop any CSV file here"}
               </p>
               <p style={{ color: "#475569", fontSize: 13 }}>
                 or <span style={{ color: currentType.color, textDecoration: "underline" }}>browse to select</span>
               </p>
               <p style={{ color: "#334155", fontSize: 11, marginTop: 16, fontFamily: "'JetBrains Mono', monospace" }}>
-                Any CSV format accepted — you'll map columns in the next step
+                Data type is auto-detected · Columns are auto-matched · All data is preserved
               </p>
+            </div>
+
+            {/* Supported formats info */}
+            <div style={{ ...cardBase, padding: "18px 22px", marginBottom: 22 }}>
+              <p style={{
+                fontSize: 11, color: "#64748b", letterSpacing: "0.08em",
+                fontWeight: 600, marginBottom: 12, textTransform: "uppercase",
+              }}>
+                Supported formats
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+                {DATA_TYPES.map((type) => (
+                  <div key={type.key} style={{
+                    padding: "12px 14px", borderRadius: 10, textAlign: "center",
+                    background: "rgba(2,6,23,0.4)", border: "1px solid rgba(30,41,59,0.5)",
+                  }}>
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{type.icon}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8" }}>{type.label}</div>
+                    <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>{REQUIRED_COLS[type.key].length} columns</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -448,11 +495,29 @@ export default function FormatData() {
                     {rawFile?.name}
                   </p>
                   <p style={{ color: "#475569", fontSize: 11, margin: 0, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
-                    {sourceHeaders.length} columns · {sourceRows.length} rows
+                    {sourceHeaders.length} columns · {sourceRows.length} rows · auto-detected as <span style={{ color: currentType.color }}>{currentType.label}</span>
                   </p>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {/* Allow switching data type after auto-detect */}
+                <select
+                  className="fmt-select"
+                  value={selectedType}
+                  onChange={(e) => {
+                    const newType = e.target.value;
+                    setSelectedType(newType);
+                    setMapping(autoMap(sourceHeaders, REQUIRED_COLS[newType]));
+                  }}
+                  style={{
+                    padding: "7px 12px", borderRadius: 8, fontSize: 12,
+                    color: "#e2e8f0", background: "rgba(2,6,23,0.6)",
+                    border: "1.5px solid rgba(51,65,85,0.5)",
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {DATA_TYPES.map(t => <option key={t.key} value={t.key}>{t.icon} {t.label}</option>)}
+                </select>
                 <button onClick={reset} className="fmt-btn" style={{
                   padding: "7px 16px", borderRadius: 8,
                   background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)",
@@ -582,7 +647,13 @@ export default function FormatData() {
             </div>
 
             {/* Actions */}
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center" }}>
+              {unmappedSourceCols.length > 0 && (
+                <span style={{ fontSize: 11, color: "#475569", fontStyle: "italic" }}>
+                  {unmappedSourceCols.length} unmapped column{unmappedSourceCols.length > 1 ? "s" : ""} will be preserved as extra data
+                </span>
+              )}
+              <div style={{ display: "flex", gap: 10, marginLeft: "auto" }}>
               <button onClick={reset} className="fmt-btn" style={{
                 padding: "11px 22px", borderRadius: 10,
                 background: "rgba(51,65,85,0.3)", border: "1px solid rgba(71,85,105,0.4)",
@@ -607,6 +678,7 @@ export default function FormatData() {
               >
                 Preview Result →
               </button>
+              </div>
             </div>
           </div>
         )}
@@ -635,7 +707,7 @@ export default function FormatData() {
                     Data formatted successfully
                   </p>
                   <p style={{ color: "#475569", fontSize: 12, margin: 0, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
-                    {mappedRows.length} rows · {targetCols.length} columns · {currentType.label} format
+                    {mappedRows.length} rows · {allOutputHeaders.length} columns ({targetCols.length} mapped{unmappedSourceCols.length > 0 ? ` + ${unmappedSourceCols.length} extra` : ""}) · {currentType.label} format
                   </p>
                 </div>
               </div>
@@ -683,15 +755,17 @@ export default function FormatData() {
                       }}>
                         #
                       </th>
-                      {targetCols.map((col) => (
-                        <th key={col} style={{
+                      {allOutputHeaders.map((col, ci) => (
+                        <th key={ci} style={{
                           padding: "10px 16px", textAlign: "left",
-                          color: currentType.color, fontWeight: 600, fontSize: 11,
+                          color: ci < targetCols.length ? currentType.color : "#475569",
+                          fontWeight: 600, fontSize: 11,
                           borderBottom: "1px solid rgba(30,41,59,0.6)",
                           background: "rgba(2,6,23,0.4)",
                           whiteSpace: "nowrap",
+                          fontStyle: ci >= targetCols.length ? "italic" : "normal",
                         }}>
-                          {col}
+                          {col}{ci >= targetCols.length ? " *" : ""}
                         </th>
                       ))}
                     </tr>
@@ -781,9 +855,9 @@ export default function FormatData() {
               </p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
                 {[
-                  { icon: "📄", title: "Upload any CSV", desc: "Drop your file in any format — Excel exports, database dumps, API exports" },
-                  { icon: "🔗", title: "Map columns", desc: "Visually match your columns to the required format. Auto-detection included" },
-                  { icon: "📥", title: "Download & upload", desc: "Get a perfectly formatted CSV ready to use in the Upload section" },
+                  { icon: "📄", title: "Upload any CSV", desc: "Drop your file in any format — columns are auto-detected and matched to the right data type" },
+                  { icon: "🔗", title: "Review & adjust", desc: "Verify the auto-matched columns or adjust mappings manually. Unmapped columns are preserved" },
+                  { icon: "📥", title: "Download & upload", desc: "Get a formatted CSV with all your data — mapped columns + extra columns preserved" },
                 ].map((item) => (
                   <div key={item.title} style={{
                     padding: "18px 16px", borderRadius: 10,

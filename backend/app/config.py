@@ -9,7 +9,10 @@ load_dotenv(dotenv_path=env_path)
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is not set. Check your .env file.")
+    # Fallback to local SQLite for development
+    _db_path = Path(__file__).resolve().parent.parent / "mosaic_local.db"
+    DATABASE_URL = f"sqlite:///{_db_path}"
+    print(f"⚠️  DATABASE_URL not set — using local SQLite: {_db_path}")
 
 # Render provides postgres:// but SQLAlchemy 2.0+ requires postgresql://
 if DATABASE_URL.startswith("postgres://"):

@@ -9,14 +9,6 @@ from app import models
 from app.services.review_analyzer import extract_complaint_signals
 
 
-BRAND_PROFILE = {
-    "target_gender": "male",
-    "price_band": (500, 1000),
-    "focus_categories": ["haircare", "men wellness", "grooming", "skincare"],
-    "positioning_keywords": ["performance", "efficacy", "clinical", "no-nonsense"],
-}
-
-
 def normalize(value, max_value=100):
     return min((value / max_value) * 100, 100) if max_value else 0
 

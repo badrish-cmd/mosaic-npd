@@ -89,7 +89,9 @@ def validate_columns(df: pd.DataFrame, data_type: str):
 @router.post("/reviews")
 async def upload_reviews(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
-    df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+    df = pd.read_csv(io.StringIO(contents.decode("utf-8-sig")))
+    if df.empty:
+        raise HTTPException(status_code=400, detail="CSV file contains no data rows.")
     validate_columns(df, "reviews")
 
     try:
@@ -116,7 +118,9 @@ async def upload_reviews(file: UploadFile = File(...), db: Session = Depends(get
 @router.post("/reddit")
 async def upload_reddit(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
-    df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+    df = pd.read_csv(io.StringIO(contents.decode("utf-8-sig")))
+    if df.empty:
+        raise HTTPException(status_code=400, detail="CSV file contains no data rows.")
     validate_columns(df, "reddit")
 
     try:
@@ -142,7 +146,9 @@ async def upload_reddit(file: UploadFile = File(...), db: Session = Depends(get_
 @router.post("/trends")
 async def upload_trends(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
-    df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+    df = pd.read_csv(io.StringIO(contents.decode("utf-8-sig")))
+    if df.empty:
+        raise HTTPException(status_code=400, detail="CSV file contains no data rows.")
     validate_columns(df, "trends")
 
     try:
@@ -167,7 +173,9 @@ async def upload_trends(file: UploadFile = File(...), db: Session = Depends(get_
 @router.post("/competition")
 async def upload_competition(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
-    df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+    df = pd.read_csv(io.StringIO(contents.decode("utf-8-sig")))
+    if df.empty:
+        raise HTTPException(status_code=400, detail="CSV file contains no data rows.")
     validate_columns(df, "competition")
 
     try:
@@ -204,7 +212,7 @@ CUMULATIVE_REQUIRED = {
 @router.post("/cumulative")
 async def upload_cumulative(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
-    df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+    df = pd.read_csv(io.StringIO(contents.decode("utf-8-sig")))
 
     if "data_type" not in df.columns:
         raise HTTPException(

@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routes import health, analysis, upload, scrape
+from app.routes import health, analysis, upload
+
+try:
+    from app.routes import scrape
+    _scrape_available = True
+except Exception:
+    _scrape_available = False
 
 # ---------------------------------------------------
 # App Initialization
@@ -33,7 +39,8 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(analysis.router)
 app.include_router(upload.router)
-app.include_router(scrape.router)
+if _scrape_available:
+    app.include_router(scrape.router)
 
 # ---------------------------------------------------
 # Auto-create tables on startup

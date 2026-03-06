@@ -130,7 +130,11 @@ def scrape_reddit(db: Session, category: str, keywords: list[str],
                 logger.warning(f"Reddit request failed for r/{subreddit}: {e}")
                 continue
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
     return saved_count
 
 
@@ -240,7 +244,11 @@ def _fallback_trends(db: Session, keywords: list[str]):
                     saved_count += 1
         except Exception as e:
             logger.warning(f"Trend fallback failed for {kw}: {e}")
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
     return saved_count
 
 
@@ -306,7 +314,11 @@ def scrape_amazon_reviews(db: Session, category: str, keywords: list[str],
                                                max_reviews - saved_count)
     saved_count += flipkart_count
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
     return saved_count
 
 
@@ -474,7 +486,11 @@ def scrape_competition(db: Session, category: str, keywords: list[str],
         except requests.RequestException as e:
             logger.warning(f"Competition scrape failed for {keyword}: {e}")
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
     return saved_count
 
 
@@ -567,7 +583,11 @@ def run_full_scrape(db: Session, category: str, keywords: list[str],
     db.query(models.CompetitionProduct).delete()
     db.query(models.OpportunityCluster).delete()
     db.query(models.ProductConcept).delete()
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
 
     results = {
         "category": category,

@@ -61,8 +61,11 @@ def scrape_all(req: ScrapeRequest, db: Session = Depends(get_db)):
     if not req.category:
         raise HTTPException(status_code=400, detail="Category is required")
 
-    result = run_full_scrape(db, req.category, req.keywords, req.subreddits)
-    return result
+    try:
+        result = run_full_scrape(db, req.category, req.keywords, req.subreddits)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scraping pipeline error: {str(e)}")
 
 
 # ── Individual scrapers ─────────────────────────────────────────────
@@ -74,13 +77,19 @@ def scrape_reddit_endpoint(req: ScrapeRedditRequest,
     if not req.keywords:
         raise HTTPException(status_code=400, detail="At least one keyword is required")
 
-    # Clear existing reddit data
-    db.query(models.RedditRaw).delete()
-    db.commit()
+    try:
+        # Clear existing reddit data
+        db.query(models.RedditRaw).delete()
+        db.commit()
 
-    count = scrape_reddit(db, req.category, req.keywords,
-                          req.subreddits, req.max_posts)
-    return {"source": "reddit", "posts_scraped": count}
+        count = scrape_reddit(db, req.category, req.keywords,
+                              req.subreddits, req.max_posts)
+        return {"source": "reddit", "posts_scraped": count}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Reddit scraping error: {str(e)}")
 
 
 @router.post("/trends")
@@ -90,11 +99,17 @@ def scrape_trends_endpoint(req: ScrapeTrendsRequest,
     if not req.keywords:
         raise HTTPException(status_code=400, detail="At least one keyword is required")
 
-    db.query(models.TrendRaw).delete()
-    db.commit()
+    try:
+        db.query(models.TrendRaw).delete()
+        db.commit()
 
-    count = scrape_trends(db, req.keywords, req.geo)
-    return {"source": "trends", "trends_fetched": count}
+        count = scrape_trends(db, req.keywords, req.geo)
+        return {"source": "trends", "trends_fetched": count}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Trends scraping error: {str(e)}")
 
 
 @router.post("/reviews")
@@ -104,12 +119,18 @@ def scrape_reviews_endpoint(req: ScrapeReviewsRequest,
     if not req.keywords:
         raise HTTPException(status_code=400, detail="At least one keyword is required")
 
-    db.query(models.ReviewRaw).delete()
-    db.commit()
+    try:
+        db.query(models.ReviewRaw).delete()
+        db.commit()
 
-    count = scrape_amazon_reviews(db, req.category, req.keywords,
-                                  req.max_reviews)
-    return {"source": "reviews", "reviews_scraped": count}
+        count = scrape_amazon_reviews(db, req.category, req.keywords,
+                                      req.max_reviews)
+        return {"source": "reviews", "reviews_scraped": count}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Review scraping error: {str(e)}")
 
 
 @router.post("/competition")
@@ -119,9 +140,15 @@ def scrape_competition_endpoint(req: ScrapeReviewsRequest,
     if not req.keywords:
         raise HTTPException(status_code=400, detail="At least one keyword is required")
 
-    db.query(models.CompetitionProduct).delete()
-    db.commit()
+    try:
+        db.query(models.CompetitionProduct).delete()
+        db.commit()
 
-    count = scrape_competition(db, req.category, req.keywords,
-                               req.max_reviews)
-    return {"source": "competition", "products_scraped": count}
+        count = scrape_competition(db, req.category, req.keywords,
+                                   req.max_reviews)
+        return {"source": "competition", "products_scraped": count}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Competition scraping error: {str(e)}")

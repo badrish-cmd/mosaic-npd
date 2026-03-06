@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routes import health, analysis, upload
+from app.routes import health, analysis, upload, scrape
 
 # ---------------------------------------------------
 # App Initialization
@@ -33,6 +33,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(analysis.router)
 app.include_router(upload.router)
+app.include_router(scrape.router)
 
 # ---------------------------------------------------
 # Auto-create tables on startup

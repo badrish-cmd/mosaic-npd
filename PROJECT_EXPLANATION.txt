@@ -59,10 +59,14 @@ In the real world, when a company wants to launch a new product, the process
 
    NEW WAY (With this tool, takes minutes):
    ─────────────────────────────────────────
-   1. Upload CSV files of reviews, Reddit posts, trends, competitors
-   2. Click "Refresh" on the dashboard
-   3. Get fully-formed product concepts with evidence, pricing,
+   1. Select a category and keywords in the Live Scraper
+   2. Click "Start Live Scraping" — fetches real data from Reddit,
+      Google Trends, Amazon India, and Flipkart automatically
+   3. Click "Run Full Analysis Pipeline" on scraped data
+   4. Get fully-formed product concepts with evidence, pricing,
       target consumer, ingredients, and a ready-to-present brief
+   
+   (You can also upload CSV files manually if preferred)
 
 The tool compresses weeks of work into minutes.
 
@@ -74,43 +78,45 @@ The tool compresses weeks of work into minutes.
 Here is the complete journey from raw data to product invention:
 
    ┌──────────────────────────────────────────────────────────────┐
-   │  STEP 1: DATA UPLOAD                                        │
+   │  STEP 1: LIVE DATA COLLECTION (or CSV Upload)                │
    │                                                              │
-   │  The user uploads 4 types of CSV files:                      │
+   │  PRIMARY: Live scraping from the AI Scraper page:            │
    │                                                              │
-   │  a) Reviews CSV — Customer reviews from Amazon, Flipkart,    │
-   │     Nykaa with product name, brand, rating, review text      │
+   │  a) Reddit — Scrapes public posts from relevant subreddits   │
+   │     (e.g. r/IndianSkincareAddicts, r/malegrooming) using     │
+   │     Reddit's public JSON API. No API key needed.             │
    │                                                              │
-   │  b) Reddit CSV — Posts from subreddits like                  │
-   │     r/IndianSkincareAddicts with title, text, upvotes        │
+   │  b) Google Trends — Fetches search volume and growth data    │
+   │     via pytrends library for real demand signals.            │
    │                                                              │
-   │  c) Trends CSV — Google Trends data showing what people      │
-   │     are searching for (keyword, monthly searches, growth %)  │
+   │  c) Amazon India — Scrapes product listings, ratings, and    │
+   │     review signals from search results.                      │
    │                                                              │
-   │  d) Competition CSV — Existing competitor products with      │
-   │     brand, format (serum/oil/shampoo), price, ingredients    │
+   │  d) Flipkart — Scrapes product data from India's second      │
+   │     largest e-commerce platform.                              │
    │                                                              │
-   │  (There is also a "Cumulative" option that combines all 4    │
-   │   data types into one CSV file)                              │
+   │  ALTERNATIVE: Upload 4 types of CSV files manually:          │
+   │  reviews, reddit, trends, competition (or cumulative)        │
    └──────────────────────────────────────────────────────────────┘
                               │
                               ▼
    ┌──────────────────────────────────────────────────────────────┐
    │  STEP 2: COMPLAINT MINING                                    │
    │                                                              │
-   │  The system reads every review and Reddit post, then scans   │
-   │  for 10 complaint themes using keyword matching:             │
+   │  The system reads every review and Reddit post, then uses    │
+   │  data-driven n-gram phrase extraction (not hardcoded         │
+   │  keywords) to discover complaint themes automatically:       │
    │                                                              │
-   │  - Greasy/Heavy Texture ("greasy", "sticky", "oily")        │
-   │  - Slow/No Results ("no results", "didn't work", "waste")   │
-   │  - Skin/Scalp Irritation ("itch", "burn", "rash")           │
-   │  - Price/Value Concern ("expensive", "overpriced")           │
-   │  - Packaging Problems ("leak", "broken", "spill")           │
-   │  - Unpleasant Fragrance ("smell", "chemical smell")         │
-   │  - Hair Fall/Thinning ("hair fall", "shedding", "bald")     │
-   │  - Dryness/Flaking ("dry", "flaky", "dandruff")            │
-   │  - Ingredient Safety ("chemical", "paraben", "sulfate")     │
-   │  - Size/Quantity Issues ("small", "tiny", "runs out")       │
+   │  - Extracts 2-gram and 3-gram phrases from negative reviews  │
+   │  - Groups overlapping phrases into complaint clusters        │
+   │  - Works for ANY product category without configuration      │
+   │                                                              │
+   │  Example themes discovered automatically:                    │
+   │  - Greasy/Heavy Texture, Slow/No Results                    │
+   │  - Skin/Scalp Irritation, Price/Value Concerns              │
+   │  - Packaging Problems, Unpleasant Fragrance                 │
+   │  - Hair Fall/Thinning, Dryness/Flaking                      │
+   │  - Ingredient Safety, Size/Quantity Issues                  │
    │                                                              │
    │  For each theme, it calculates:                              │
    │  - Intensity (% of reviews mentioning it)                   │

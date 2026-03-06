@@ -168,17 +168,17 @@ def scrape_trends(db: Session, keywords: list[str], geo: str = "IN"):
                         if len(series) >= 2:
                             first_quarter = series.iloc[:len(series) // 4].mean()
                             last_quarter = series.iloc[-len(series) // 4:].mean()
-                            growth = 0
+                            growth = 0.0
                             if first_quarter > 0:
                                 growth = ((last_quarter - first_quarter) / first_quarter) * 100
 
                             avg_interest = series.mean()
-                            estimated_volume = int(avg_interest * 500)
+                            estimated_volume = int(float(avg_interest) * 500)
 
                             db.add(models.TrendRaw(
                                 keyword=kw,
                                 search_volume=estimated_volume,
-                                growth_percent=round(growth, 1),
+                                growth_percent=float(round(growth, 1)),
                                 timeframe="12m",
                             ))
                             saved_count += 1
@@ -194,10 +194,13 @@ def scrape_trends(db: Session, keywords: list[str], geo: str = "IN"):
                                 query = str(row.get("query", "")).strip()
                                 val = row.get("value", 0)
                                 if query and query.lower() not in [k.lower() for k in keywords]:
+                                    # Convert numpy types to native Python types
+                                    sv = int(float(val) * 100) if val else 0
+                                    gp = float(val) if val else 0.0
                                     db.add(models.TrendRaw(
                                         keyword=query,
-                                        search_volume=int(val * 100) if val else 0,
-                                        growth_percent=float(val) if val else 0,
+                                        search_volume=sv,
+                                        growth_percent=gp,
                                         timeframe="12m (rising)",
                                     ))
                                     saved_count += 1
@@ -208,7 +211,11 @@ def scrape_trends(db: Session, keywords: list[str], geo: str = "IN"):
             logger.warning(f"pytrends batch failed: {e}")
             continue
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
     return saved_count
 
 
@@ -578,6 +585,7 @@ def run_full_scrape(db: Session, category: str, keywords: list[str],
             db, category, keywords, subreddits, max_posts=50
         )
     except Exception as e:
+        db.rollback()
         results["errors"].append(f"Reddit: {str(e)}")
         logger.error(f"Reddit scraper failed: {e}")
 
@@ -585,6 +593,7 @@ def run_full_scrape(db: Session, category: str, keywords: list[str],
     try:
         results["trends"] = scrape_trends(db, keywords)
     except Exception as e:
+        db.rollback()
         results["errors"].append(f"Trends: {str(e)}")
         logger.error(f"Trends scraper failed: {e}")
 
@@ -594,6 +603,7 @@ def run_full_scrape(db: Session, category: str, keywords: list[str],
             db, category, keywords, max_reviews=50
         )
     except Exception as e:
+        db.rollback()
         results["errors"].append(f"Reviews: {str(e)}")
         logger.error(f"Review scraper failed: {e}")
 
@@ -603,6 +613,7 @@ def run_full_scrape(db: Session, category: str, keywords: list[str],
             db, category, keywords, max_products=30
         )
     except Exception as e:
+        db.rollback()
         results["errors"].append(f"Competition: {str(e)}")
         logger.error(f"Competition scraper failed: {e}")
 
